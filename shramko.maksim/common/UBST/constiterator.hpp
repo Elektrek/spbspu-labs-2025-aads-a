@@ -24,7 +24,7 @@ namespace shramko
       tree_(nullptr)
     {}
 
-    explicit ConstIterator(Node< Key, Value >* node, const UBstTree< Key, Value, Compare >* tree = nullptr):
+    explicit ConstIterator(const Node< Key, Value >* node, const UBstTree< Key, Value, Compare >* tree = nullptr):
       node_(node),
       tree_(tree)
     {}
@@ -49,7 +49,7 @@ namespace shramko
         }
         else
         {
-          Node< Key, Value >* parent = node_->parent;
+          const Node< Key, Value >* parent = node_->parent;
           while (parent && node_ == parent->right)
           {
             node_ = parent;
@@ -84,7 +84,7 @@ namespace shramko
       }
       else
       {
-        Node< Key, Value >* parent = node_->parent;
+        const Node< Key, Value >* parent = node_->parent;
         while (parent && node_ == parent->left)
         {
           node_ = parent;
@@ -114,10 +114,10 @@ namespace shramko
 
   private:
     friend class UBstTree< Key, Value, Compare >;
-    Node< Key, Value >* node_;
+    const Node< Key, Value >* node_;
     const UBstTree< Key, Value, Compare >* tree_;
 
-    Node< Key, Value >* minNode(Node< Key, Value >* node) const
+    const Node< Key, Value >* minNode(const Node< Key, Value >* node) const
     {
       while (node && node->left)
       {
@@ -126,7 +126,7 @@ namespace shramko
       return node;
     }
 
-    Node< Key, Value >* maxNode(Node< Key, Value >* node) const
+    const Node< Key, Value >* maxNode(const Node< Key, Value >* node) const
     {
       while (node && node->right)
       {

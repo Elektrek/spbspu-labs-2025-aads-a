@@ -1,6 +1,6 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/test/tools/output_test_stream.hpp>
-#include "UBST.hpp"
+#include <UBST/UBST.hpp>
 
 using namespace shramko;
 
