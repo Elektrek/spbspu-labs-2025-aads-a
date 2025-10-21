@@ -31,7 +31,7 @@ namespace shramko
   }
 }
 
-void create(const shramko::FwdList< std::string >& args, DictionaryManager& dm, std::ostream& os)
+void create(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
   if (args.size() != 1)
   {
@@ -50,7 +50,7 @@ void create(const shramko::FwdList< std::string >& args, DictionaryManager& dm, 
   }
 }
 
-void add(const shramko::FwdList< std::string >& args, DictionaryManager& dm, std::ostream& os)
+void add(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
   if (args.size() != 2 && args.size() != 3)
   {
@@ -91,7 +91,7 @@ void add(const shramko::FwdList< std::string >& args, DictionaryManager& dm, std
   }
 }
 
-void increment(const shramko::FwdList< std::string >& args, DictionaryManager& dm, std::ostream& os)
+void increment(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
   if (args.size() != 2 && args.size() != 3)
   {
@@ -132,7 +132,7 @@ void increment(const shramko::FwdList< std::string >& args, DictionaryManager& d
   }
 }
 
-void search(const shramko::FwdList< std::string >& args, DictionaryManager& dm, std::ostream& os)
+void search(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
   if (args.size() != 2)
   {
@@ -154,7 +154,7 @@ void search(const shramko::FwdList< std::string >& args, DictionaryManager& dm, 
   }
 }
 
-void delete_(const shramko::FwdList< std::string >& args, DictionaryManager& dm, std::ostream& os)
+void delete_(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
   if (args.size() != 2)
   {
@@ -175,7 +175,7 @@ void delete_(const shramko::FwdList< std::string >& args, DictionaryManager& dm,
   }
 }
 
-void dump(const shramko::FwdList< std::string >& args, DictionaryManager& dm, std::ostream& os)
+void dump(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
   if (args.size() != 1)
   {
@@ -198,7 +198,7 @@ void dump(const shramko::FwdList< std::string >& args, DictionaryManager& dm, st
   os << "\n";
 }
 
-void top(const shramko::FwdList< std::string >& args, DictionaryManager& dm, std::ostream& os)
+void top(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
   if (args.size() != 2)
   {
@@ -230,7 +230,7 @@ void top(const shramko::FwdList< std::string >& args, DictionaryManager& dm, std
     os << "EMPTY\n";
     return;
   }
-  shramko::FwdList< std::pair< std::string, int > > items;
+  shramko::ForwardList< std::pair< std::string, int > > items;
   for (auto dictIt = dict->begin(); dictIt != dict->end(); ++dictIt)
   {
     items.push_back(*dictIt);
@@ -245,7 +245,7 @@ void top(const shramko::FwdList< std::string >& args, DictionaryManager& dm, std
   os << "\n";
 }
 
-void bot(const shramko::FwdList< std::string >& args, DictionaryManager& dm, std::ostream& os)
+void bot(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
   if (args.size() != 2)
   {
@@ -277,7 +277,7 @@ void bot(const shramko::FwdList< std::string >& args, DictionaryManager& dm, std
     os << "EMPTY\n";
     return;
   }
-  shramko::FwdList< std::pair< std::string, int > > items;
+  shramko::ForwardList< std::pair< std::string, int > > items;
   for (auto dictIt = dict->begin(); dictIt != dict->end(); ++dictIt)
   {
     items.push_back(*dictIt);
@@ -292,7 +292,7 @@ void bot(const shramko::FwdList< std::string >& args, DictionaryManager& dm, std
   os << "\n";
 }
 
-void minfreq(const shramko::FwdList< std::string >& args, DictionaryManager& dm, std::ostream& os)
+void minfreq(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
   if (args.size() != 2)
   {
@@ -319,7 +319,7 @@ void minfreq(const shramko::FwdList< std::string >& args, DictionaryManager& dm,
     os << "DICT NOT FOUND\n";
     return;
   }
-  shramko::FwdList< std::pair< std::string, int > > items;
+  shramko::ForwardList< std::pair< std::string, int > > items;
   for (auto dictIt = dict->begin(); dictIt != dict->end(); ++dictIt)
   {
     if (dictIt->second >= min_val)
@@ -336,7 +336,7 @@ void minfreq(const shramko::FwdList< std::string >& args, DictionaryManager& dm,
   os << "\n";
 }
 
-void maxfreq(const shramko::FwdList< std::string >& args, DictionaryManager& dm, std::ostream& os)
+void maxfreq(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
   if (args.size() != 2)
   {
@@ -363,7 +363,7 @@ void maxfreq(const shramko::FwdList< std::string >& args, DictionaryManager& dm,
     os << "DICT NOT FOUND\n";
     return;
   }
-  shramko::FwdList< std::pair< std::string, int > > items;
+  shramko::ForwardList< std::pair< std::string, int > > items;
   for (auto dictIt = dict->begin(); dictIt != dict->end(); ++dictIt)
   {
     if (dictIt->second > max_val)
@@ -380,7 +380,7 @@ void maxfreq(const shramko::FwdList< std::string >& args, DictionaryManager& dm,
   os << "\n";
 }
 
-void median(const shramko::FwdList< std::string >& args, DictionaryManager& dm, std::ostream& os)
+void median(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
   if (args.size() != 1)
   {
@@ -400,7 +400,7 @@ void median(const shramko::FwdList< std::string >& args, DictionaryManager& dm, 
     os << "EMPTY DICT\n";
     return;
   }
-  shramko::FwdList< int > freqs;
+  shramko::ForwardList< int > freqs;
   for (auto dictIt = dict->begin(); dictIt != dict->end(); ++dictIt)
   {
     freqs.push_back(dictIt->second);
@@ -435,11 +435,11 @@ void median(const shramko::FwdList< std::string >& args, DictionaryManager& dm, 
 
 struct OneArgCaller
 {
-  void (*func)(const shramko::FwdList< std::string >&, DictionaryManager&, std::ostream&);
-  OneArgCaller(void (*f)(const shramko::FwdList< std::string >&, DictionaryManager&, std::ostream&)):
+  void (*func)(const shramko::ForwardList< std::string >&, DictionaryManager&, std::ostream&);
+  OneArgCaller(void (*f)(const shramko::ForwardList< std::string >&, DictionaryManager&, std::ostream&)):
     func(f)
   {}
-  void operator()(const shramko::FwdList< std::string >& args, DictionaryManager& dm, std::ostream& os) const
+  void operator()(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os) const
   {
     func(args, dm, os);
   }

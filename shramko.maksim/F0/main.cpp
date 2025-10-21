@@ -4,12 +4,12 @@
 #include <cctype>
 #include "dictionary_manager.hpp"
 #include "commands.hpp"
-#include <FwdList.hpp>
+#include <FwdList/FwdList.hpp>
 #include <HashTable/hash_table.hpp>
 
-shramko::FwdList< std::string > splitString(const std::string& str)
+shramko::ForwardList< std::string > splitString(const std::string& str)
 {
-  shramko::FwdList< std::string > tokens;
+  shramko::ForwardList< std::string > tokens;
   std::string currentToken;
   size_t start = 0;
   size_t end = str.length();
@@ -25,7 +25,7 @@ shramko::FwdList< std::string > splitString(const std::string& str)
     {
       if (!currentToken.empty())
       {
-        tokens.push_back(currentToken);
+        tokens.addToBack(currentToken);
         currentToken.clear();
       }
     }
@@ -37,7 +37,7 @@ shramko::FwdList< std::string > splitString(const std::string& str)
 
   if (!currentToken.empty())
   {
-    tokens.push_back(currentToken);
+    tokens.addToBack(currentToken);
   }
   return tokens;
 }
@@ -45,7 +45,7 @@ shramko::FwdList< std::string > splitString(const std::string& str)
 int main(int argc, char* argv[])
 {
   DictionaryManager dm;
-  shramko::hash_table< unsigned char > commandMap = createCommandMap();
+  shramko::HashTable< std::string, CommandFunction > commandMap = createCommandMap();
 
   if (argc == 2)
   {
@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
       continue;
     }
 
-    shramko::FwdList< std::string > tokens = splitString(line);
+    shramko::ForwardList< std::string > tokens = splitString(line);
     if (tokens.empty())
     {
       continue;
@@ -78,10 +78,10 @@ int main(int argc, char* argv[])
     std::string commandName = *it;
     ++it;
 
-    shramko::FwdList< std::string > args;
+    shramko::ForwardList< std::string > args;
     for (; it != tokens.end(); ++it)
     {
-      args.push_back(*it);
+      args.addToBack(*it);
     }
 
     auto cmdIt = commandMap.find(commandName);
