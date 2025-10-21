@@ -5,10 +5,11 @@
 #include <cstddef>
 #include <utility>
 #include <stdexcept>
+#include <functional>
 
-#include "FwdListNode.hpp"
-#include "constIterator.hpp"
-#include "iterator.hpp"
+#include "fwd_list_node.hpp"
+#include "fwd_const_iterator.hpp"
+#include "fwd_iterator.hpp"
 
 namespace shramko
 {
@@ -16,11 +17,11 @@ namespace shramko
   class ForwardList
   {
   public:
-    friend class ConstIterator< T >;
-    friend class Iterator< T >;
+    friend class FwdConstIterator< T >;
+    friend class FwdIterator< T >;
 
-    using const_iterator = ConstIterator< T >;
-    using iterator = Iterator< T >;
+    using const_iterator = FwdConstIterator< T >;
+    using iterator = FwdIterator< T >;
 
     ForwardList();
     ~ForwardList() noexcept;
@@ -53,6 +54,9 @@ namespace shramko
 
     void addToBack(const T& value);
     void addToBack(T&& value);
+
+    template <class Comp = std::less<T>>
+    void sort(Comp comp = Comp());
 
   private:
     ListNode< T >* headNode_;
@@ -113,7 +117,7 @@ shramko::ForwardList< T >& shramko::ForwardList< T >::operator=(ForwardList< T >
     headNode_ = other.headNode_;
     tailNode_ = other.tailNode_;
     currentSize_ = other.currentSize_;
-    other.tailNode_ = other.headNode_ = nullptr;
+    other.headNode_ = other.tailNode_ = nullptr;
     other.currentSize_ = 0;
   }
   return *this;
@@ -134,13 +138,7 @@ typename shramko::ForwardList< T >::iterator shramko::ForwardList< T >::begin() 
 template< typename T >
 typename shramko::ForwardList< T >::iterator shramko::ForwardList< T >::end() noexcept
 {
-  if (currentSize_ == 0)
-  {
-    return iterator(nullptr);
-  }
-  iterator it(tailNode_->nextPtr);
-  it.isAtBegin_ = false;
-  return it;
+  return iterator(nullptr);
 }
 
 template< typename T >
@@ -152,13 +150,7 @@ typename shramko::ForwardList< T >::const_iterator shramko::ForwardList< T >::be
 template< typename T >
 typename shramko::ForwardList< T >::const_iterator shramko::ForwardList< T >::end() const noexcept
 {
-  if (currentSize_ == 0)
-  {
-    return const_iterator(nullptr);
-  }
-  const_iterator it(tailNode_->nextPtr);
-  it.isAtBegin_ = false;
-  return it;
+  return const_iterator(nullptr);
 }
 
 template< typename T >
@@ -170,13 +162,7 @@ typename shramko::ForwardList< T >::const_iterator shramko::ForwardList< T >::cb
 template< typename T >
 typename shramko::ForwardList< T >::const_iterator shramko::ForwardList< T >::cend() const noexcept
 {
-  if (currentSize_ == 0)
-  {
-    return const_iterator(nullptr);
-  }
-  const_iterator it(tailNode_->nextPtr);
-  it.isAtBegin_ = false;
-  return it;
+  return const_iterator(nullptr);
 }
 
 template< typename T >
@@ -236,11 +222,10 @@ void shramko::ForwardList< T >::insertFrontNode(ListNode< T >* newNode) noexcept
 {
   newNode->nextPtr = headNode_;
   headNode_ = newNode;
-  if (isEmpty())
+  if (currentSize_ == 0)
   {
     tailNode_ = newNode;
   }
-  tailNode_->nextPtr = headNode_;
   currentSize_++;
 }
 
@@ -263,12 +248,11 @@ void shramko::ForwardList< T >::removeFront()
   {
     ListNode< T >* oldHead = headNode_;
     headNode_ = headNode_->nextPtr;
-    tailNode_->nextPtr = headNode_;
     delete oldHead;
     currentSize_--;
-    if (isEmpty())
+    if (currentSize_ == 0)
     {
-      headNode_ = tailNode_ = nullptr;
+      tailNode_ = nullptr;
     }
   }
 }
@@ -276,16 +260,14 @@ void shramko::ForwardList< T >::removeFront()
 template< typename T >
 void shramko::ForwardList< T >::insertBackNode(ListNode< T >* newNode) noexcept
 {
-  if (!isEmpty())
+  if (currentSize_ == 0)
   {
-    tailNode_->nextPtr = newNode;
-    tailNode_ = newNode;
-    tailNode_->nextPtr = headNode_;
+    headNode_ = tailNode_ = newNode;
   }
   else
   {
-    headNode_ = tailNode_ = newNode;
-    tailNode_->nextPtr = headNode_;
+    tailNode_->nextPtr = newNode;
+    tailNode_ = newNode;
   }
   currentSize_++;
 }
@@ -317,6 +299,35 @@ void shramko::ForwardList< T >::clearAll() noexcept
   {
     removeFront();
   }
+}
+
+template< typename T >
+template <class Comp>
+void shramko::ForwardList< T >::sort(Comp comp)
+{
+  if (getSize() < 2)
+  {
+    return;
+  }
+
+  bool swapped;
+  do
+  {
+    swapped = false;
+    auto prev = begin();
+    auto curr = begin();
+    ++curr;
+    while (curr != end())
+    {
+      if (comp(*curr, *prev))
+      {
+        std::swap(*prev, *curr);
+        swapped = true;
+      }
+      ++prev;
+      ++curr;
+    }
+  } while (swapped);
 }
 
 #endif

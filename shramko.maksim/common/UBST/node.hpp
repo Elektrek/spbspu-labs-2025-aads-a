@@ -8,16 +8,16 @@ namespace shramko
   template < typename Key, typename Value >
   struct Node
   {
-    std::pair< const Key, Value > data;
-    Node * left;
-    Node * right;
-    Node * parent;
+    std::pair< Key, Value > data;
+    Node* parent;
+    Node* left;
+    Node* right;
 
-    Node(const Key & key, const Value & value):
-      data(key, value),
+    Node(const Key& k, const Value& v):
+      data(k, v),
+      parent(nullptr),
       left(nullptr),
-      right(nullptr),
-      parent(nullptr)
+      right(nullptr)
     {}
   };
 }

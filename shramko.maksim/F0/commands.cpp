@@ -1,9 +1,11 @@
+// commands.cpp
 #include "commands.hpp"
 #include <ostream>
 #include <stdexcept>
 #include "dictionary_manager.hpp"
-#include <FwdList/FwdList.hpp>
-#include <HashTable/hash_table.hpp>
+#include "FwdList.hpp"
+#include "hash_table.hpp"
+#include <algorithm>
 
 namespace shramko
 {
@@ -33,7 +35,7 @@ namespace shramko
 
 void create(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
-  if (args.size() != 1)
+  if (args.getSize() != 1)
   {
     os << "INVALID COMMAND\n";
     return;
@@ -52,7 +54,7 @@ void create(const shramko::ForwardList< std::string >& args, DictionaryManager& 
 
 void add(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
-  if (args.size() != 2 && args.size() != 3)
+  if (args.getSize() != 2 && args.getSize() != 3)
   {
     os << "INVALID COMMAND\n";
     return;
@@ -62,7 +64,7 @@ void add(const shramko::ForwardList< std::string >& args, DictionaryManager& dm,
   ++it;
   std::string word = *it;
   int freq = 1;
-  if (args.size() == 3)
+  if (args.getSize() == 3)
   {
     ++it;
     std::string freq_part = *it;
@@ -93,7 +95,7 @@ void add(const shramko::ForwardList< std::string >& args, DictionaryManager& dm,
 
 void increment(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
-  if (args.size() != 2 && args.size() != 3)
+  if (args.getSize() != 2 && args.getSize() != 3)
   {
     os << "INVALID COMMAND\n";
     return;
@@ -103,7 +105,7 @@ void increment(const shramko::ForwardList< std::string >& args, DictionaryManage
   ++it;
   std::string word = *it;
   int by = 1;
-  if (args.size() == 3)
+  if (args.getSize() == 3)
   {
     ++it;
     std::string by_part = *it;
@@ -134,7 +136,7 @@ void increment(const shramko::ForwardList< std::string >& args, DictionaryManage
 
 void search(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
-  if (args.size() != 2)
+  if (args.getSize() != 2)
   {
     os << "INVALID COMMAND\n";
     return;
@@ -156,7 +158,7 @@ void search(const shramko::ForwardList< std::string >& args, DictionaryManager& 
 
 void delete_(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
-  if (args.size() != 2)
+  if (args.getSize() != 2)
   {
     os << "INVALID COMMAND\n";
     return;
@@ -177,7 +179,7 @@ void delete_(const shramko::ForwardList< std::string >& args, DictionaryManager&
 
 void dump(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
-  if (args.size() != 1)
+  if (args.getSize() != 1)
   {
     os << "INVALID COMMAND\n";
     return;
@@ -191,7 +193,7 @@ void dump(const shramko::ForwardList< std::string >& args, DictionaryManager& dm
     return;
   }
   os << "dump: ";
-  for (auto dictIt = dict->begin(); dictIt != dict->end(); ++dictIt)
+  for (auto dictIt = dict->cbegin(); dictIt != dict->cend(); ++dictIt)
   {
     os << dictIt->first << ":" << dictIt->second << " ";
   }
@@ -200,7 +202,7 @@ void dump(const shramko::ForwardList< std::string >& args, DictionaryManager& dm
 
 void top(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
-  if (args.size() != 2)
+  if (args.getSize() != 2)
   {
     os << "INVALID COMMAND\n";
     return;
@@ -225,29 +227,37 @@ void top(const shramko::ForwardList< std::string >& args, DictionaryManager& dm,
     return;
   }
   const auto* dict = dm.getDict(dict_name);
-  if (!dict || dict->empty())
+  if (!dict)
+  {
+    os << "DICT NOT FOUND\n";
+    return;
+  }
+  if (dict->empty())
   {
     os << "EMPTY\n";
     return;
   }
-  shramko::ForwardList< std::pair< std::string, int > > items;
-  for (auto dictIt = dict->begin(); dictIt != dict->end(); ++dictIt)
+  shramko::ForwardList<std::pair<std::string, int> > items;
+  for (auto dictIt = dict->cbegin(); dictIt != dict->cend(); ++dictIt)
   {
-    items.push_back(*dictIt);
+    items.addToBack(*dictIt);
   }
   items.sort(shramko::compareByFreqDesc);
   os << "top " << n << ": ";
   size_t count = 0;
-  for (auto itemIt = items.begin(); itemIt != items.end() && count < static_cast< size_t >(n); ++itemIt, ++count)
+  auto itemIt = items.begin();
+  while (itemIt != items.end() && count < static_cast<size_t>(n))
   {
     os << itemIt->first << ":" << itemIt->second << " ";
+    ++itemIt;
+    ++count;
   }
   os << "\n";
 }
 
 void bot(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
-  if (args.size() != 2)
+  if (args.getSize() != 2)
   {
     os << "INVALID COMMAND\n";
     return;
@@ -272,29 +282,37 @@ void bot(const shramko::ForwardList< std::string >& args, DictionaryManager& dm,
     return;
   }
   const auto* dict = dm.getDict(dict_name);
-  if (!dict || dict->empty())
+  if (!dict)
+  {
+    os << "DICT NOT FOUND\n";
+    return;
+  }
+  if (dict->empty())
   {
     os << "EMPTY\n";
     return;
   }
-  shramko::ForwardList< std::pair< std::string, int > > items;
-  for (auto dictIt = dict->begin(); dictIt != dict->end(); ++dictIt)
+  shramko::ForwardList<std::pair<std::string, int> > items;
+  for (auto dictIt = dict->cbegin(); dictIt != dict->cend(); ++dictIt)
   {
-    items.push_back(*dictIt);
+    items.addToBack(*dictIt);
   }
   items.sort(shramko::compareByFreqAsc);
   os << "BOT " << n << ": ";
   size_t count = 0;
-  for (auto itemIt = items.begin(); itemIt != items.end() && count < static_cast< size_t >(n); ++itemIt, ++count)
+  auto itemIt = items.begin();
+  while (itemIt != items.end() && count < static_cast<size_t>(n))
   {
     os << itemIt->first << ":" << itemIt->second << " ";
+    ++itemIt;
+    ++count;
   }
   os << "\n";
 }
 
 void minfreq(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
-  if (args.size() != 2)
+  if (args.getSize() != 2)
   {
     os << "INVALID COMMAND\n";
     return;
@@ -319,12 +337,12 @@ void minfreq(const shramko::ForwardList< std::string >& args, DictionaryManager&
     os << "DICT NOT FOUND\n";
     return;
   }
-  shramko::ForwardList< std::pair< std::string, int > > items;
-  for (auto dictIt = dict->begin(); dictIt != dict->end(); ++dictIt)
+  shramko::ForwardList<std::pair<std::string, int> > items;
+  for (auto dictIt = dict->cbegin(); dictIt != dict->cend(); ++dictIt)
   {
     if (dictIt->second >= min_val)
     {
-      items.push_back(*dictIt);
+      items.addToBack(*dictIt);
     }
   }
   items.sort(shramko::compareByKey);
@@ -338,7 +356,7 @@ void minfreq(const shramko::ForwardList< std::string >& args, DictionaryManager&
 
 void maxfreq(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
-  if (args.size() != 2)
+  if (args.getSize() != 2)
   {
     os << "INVALID COMMAND\n";
     return;
@@ -363,12 +381,12 @@ void maxfreq(const shramko::ForwardList< std::string >& args, DictionaryManager&
     os << "DICT NOT FOUND\n";
     return;
   }
-  shramko::ForwardList< std::pair< std::string, int > > items;
-  for (auto dictIt = dict->begin(); dictIt != dict->end(); ++dictIt)
+  shramko::ForwardList<std::pair<std::string, int> > items;
+  for (auto dictIt = dict->cbegin(); dictIt != dict->cend(); ++dictIt)
   {
     if (dictIt->second > max_val)
     {
-      items.push_back(*dictIt);
+      items.addToBack(*dictIt);
     }
   }
   items.sort(shramko::compareByKey);
@@ -382,7 +400,7 @@ void maxfreq(const shramko::ForwardList< std::string >& args, DictionaryManager&
 
 void median(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
-  if (args.size() != 1)
+  if (args.getSize() != 1)
   {
     os << "INVALID COMMAND\n";
     return;
@@ -401,26 +419,24 @@ void median(const shramko::ForwardList< std::string >& args, DictionaryManager& 
     return;
   }
   shramko::ForwardList< int > freqs;
-  for (auto dictIt = dict->begin(); dictIt != dict->end(); ++dictIt)
+  for (auto dictIt = dict->cbegin(); dictIt != dict->cend(); ++dictIt)
   {
-    freqs.push_back(dictIt->second);
+    freqs.addToBack(dictIt->second);
   }
   freqs.sort();
-  size_t sz = freqs.size();
+  size_t sz = freqs.getSize();
   double med = 0.0;
-  auto freqIt = freqs.begin();
-  for (size_t i = 0; i < sz / 2; ++i)
-  {
-    ++freqIt;
-  }
   if (sz % 2 == 1)
   {
+    auto freqIt = freqs.begin();
+    for (size_t i = 0; i < sz / 2; ++i)
+    {
+      ++freqIt;
+    }
     med = *freqIt;
   }
   else
   {
-    auto prevIt = freqIt;
-    --prevIt;
     auto it1 = freqs.begin();
     for (size_t i = 0; i < sz / 2 - 1; ++i)
     {
@@ -445,9 +461,9 @@ struct OneArgCaller
   }
 };
 
-shramko::hash_table< std::string, CommandFunction > createCommandMap()
+shramko::HashTable< std::string, CommandFunction > createCommandMap()
 {
-  shramko::hash_table< std::string, CommandFunction > commandMap;
+  shramko::HashTable< std::string, CommandFunction > commandMap;
   commandMap.insert({"create", OneArgCaller(create)});
   commandMap.insert({"add", OneArgCaller(add)});
   commandMap.insert({"increment", OneArgCaller(increment)});

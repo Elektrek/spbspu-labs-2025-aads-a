@@ -1,13 +1,13 @@
 #include "dictionary_manager.hpp"
 #include <fstream>
 #include <cctype>
-#include <UBST/UBST.hpp>
-#include <HashTable/hash_table.hpp>
-#include <FwdList/FwdList.hpp>
+#include "UBST.hpp"
+#include "hash_table.hpp"
+#include <algorithm>
 
 bool DictionaryManager::createDict(const std::string& name)
 {
-  auto inserted = dicts_.insert({name, shramko::UBstTree< std::string, int >()});
+  auto inserted = dicts_.insert(name, shramko::UBstTree< std::string, int >());
   return inserted.second;
 }
 
@@ -18,15 +18,7 @@ bool DictionaryManager::addWord(const std::string& dict_name, const std::string&
   {
     return false;
   }
-  auto it = dict->find(word);
-  if (it != dict->end())
-  {
-    it->second += freq;
-  }
-  else
-  {
-    dict->insert({word, freq});
-  }
+  (*dict)[word] += freq;
   return true;
 }
 
@@ -48,7 +40,7 @@ bool DictionaryManager::getFreq(const std::string& dict_name, const std::string&
     return false;
   }
   auto it = dict->find(word);
-  if (it == dict->end())
+  if (it == dict->cend())
   {
     return false;
   }
@@ -59,7 +51,7 @@ bool DictionaryManager::getFreq(const std::string& dict_name, const std::string&
 const shramko::UBstTree< std::string, int >* DictionaryManager::getDict(const std::string& name) const
 {
   auto it = dicts_.find(name);
-  if (it == dicts_.end())
+  if (it == dicts_.cend())
   {
     return nullptr;
   }

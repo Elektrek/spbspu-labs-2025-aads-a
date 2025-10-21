@@ -4,8 +4,8 @@
 #include <cctype>
 #include "dictionary_manager.hpp"
 #include "commands.hpp"
-#include <FwdList/FwdList.hpp>
-#include <HashTable/hash_table.hpp>
+#include "FwdList.hpp"
+#include "hash_table.hpp"
 
 shramko::ForwardList< std::string > splitString(const std::string& str)
 {
@@ -69,7 +69,7 @@ int main(int argc, char* argv[])
     }
 
     shramko::ForwardList< std::string > tokens = splitString(line);
-    if (tokens.empty())
+    if (tokens.isEmpty())
     {
       continue;
     }
