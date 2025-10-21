@@ -2,6 +2,7 @@
 #define ITERATOR_HPP
 
 #include <cassert>
+#include <thread>
 
 #include "node.hpp"
 
@@ -13,7 +14,7 @@ namespace shramko
   public:
     using value_type = std::pair< const Key, T >;
     using pointer = value_type*;
-    using reference = value_type;
+    using reference = value_type&;
     using difference_type = ptrdiff_t;
     using iterator_category = std::forward_iterator_tag;
 
@@ -24,19 +25,19 @@ namespace shramko
       find_occupied();
     }
 
-    value_type& operator*()
+    reference operator*()
     {
       static thread_local value_type temp;
       temp = {slots_[current_].key, slots_[current_].value};
       return temp;
     }
 
-  value_type* operator->()
-  {
-    static thread_local value_type temp;
-    temp = {slots_[current_].key, slots_[current_].value};
-    return &temp;
-  }
+    pointer operator->()
+    {
+      static thread_local value_type temp;
+      temp = {slots_[current_].key, slots_[current_].value};
+      return &temp;
+    }
 
     HashIterator& operator++()
     {
@@ -74,6 +75,8 @@ namespace shramko
         ++current_;
       }
     }
+
+    friend class HashTable< Key, T, Hash, Eq >;
   };
 
   template < class Key, class T, class Hash, class Eq >
@@ -82,7 +85,7 @@ namespace shramko
   public:
     using value_type = std::pair< const Key, T >;
     using pointer = const value_type*;
-    using reference = value_type;
+    using reference = const value_type&;
     using difference_type = ptrdiff_t;
     using iterator_category = std::forward_iterator_tag;
 
@@ -95,15 +98,18 @@ namespace shramko
       find_occupied();
     }
 
-    value_type operator*() const
+    reference operator*() const
     {
-      assert(current_ < capacity_ && slots_[current_].occupied && !slots_[current_].deleted);
-      return value_type{slots_[current_].key, slots_[current_].value};
+      static thread_local value_type temp;
+      temp = {slots_[current_].key, slots_[current_].value};
+      return temp;
     }
 
     pointer operator->() const
     {
-      return std::addressof(operator*());
+      static thread_local value_type temp;
+      temp = {slots_[current_].key, slots_[current_].value};
+      return &temp;
     }
 
     this_t& operator++()
@@ -135,7 +141,7 @@ namespace shramko
     size_t capacity_;
     size_t current_;
 
-    void find_occupied()
+    void find_occupied() const
     {
       while (current_ < capacity_ && (!slots_[current_].occupied || slots_[current_].deleted))
       {
