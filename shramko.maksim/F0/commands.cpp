@@ -1,11 +1,9 @@
-// commands.cpp
 #include "commands.hpp"
 #include <ostream>
 #include <stdexcept>
 #include "dictionary_manager.hpp"
-#include "FwdList.hpp"
-#include "hash_table.hpp"
-#include <algorithm>
+#include <common/FwdList/FwdList.hpp>
+#include <common/HashTable/hash_table.hpp>
 
 namespace shramko
 {
@@ -464,17 +462,17 @@ struct OneArgCaller
 shramko::HashTable< std::string, CommandFunction > createCommandMap()
 {
   shramko::HashTable< std::string, CommandFunction > commandMap;
-  commandMap.insert({"create", OneArgCaller(create)});
-  commandMap.insert({"add", OneArgCaller(add)});
-  commandMap.insert({"increment", OneArgCaller(increment)});
-  commandMap.insert({"search", OneArgCaller(search)});
-  commandMap.insert({"delete", OneArgCaller(delete_)});
-  commandMap.insert({"dump", OneArgCaller(dump)});
-  commandMap.insert({"top", OneArgCaller(top)});
-  commandMap.insert({"bot", OneArgCaller(bot)});
-  commandMap.insert({"minfreq", OneArgCaller(minfreq)});
-  commandMap.insert({"maxfreq", OneArgCaller(maxfreq)});
-  commandMap.insert({"median", OneArgCaller(median)});
+  commandMap.insert("create", OneArgCaller(create));
+  commandMap.insert("add", OneArgCaller(add));
+  commandMap.insert("increment", OneArgCaller(increment));
+  commandMap.insert("search", OneArgCaller(search));
+  commandMap.insert("delete", OneArgCaller(delete_));
+  commandMap.insert("dump", OneArgCaller(dump));
+  commandMap.insert("top", OneArgCaller(top));
+  commandMap.insert("bot", OneArgCaller(bot));
+  commandMap.insert("minfreq", OneArgCaller(minfreq));
+  commandMap.insert("maxfreq", OneArgCaller(maxfreq));
+  commandMap.insert("median", OneArgCaller(median));
 
   return commandMap;
 }

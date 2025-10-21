@@ -20,7 +20,7 @@ namespace shramko
     HashTable(HashTable&& rhs) noexcept;
     template< class InputIt >
     HashTable(InputIt firstIt, InputIt lastIt);
-    HashTable(std::initializer_list< std::pair< Key, T > > init);
+    HashTable(std::initializer_list< std::pair< const Key, T > > init);
     HashTable& operator=(const HashTable& rhs);
     HashTable& operator=(HashTable&& rhs) noexcept;
 
@@ -64,8 +64,8 @@ namespace shramko
   };
 
   template< class Key, class T, class Hash, class Eq >
-  HashTable< Key, T, Hash, Eq >::HashTable():
-    HashTable(10)
+  HashTable< Key, T, Hash, Eq >::HashTable()
+    : HashTable(10)
   {}
 
   template< class Key, class T, class Hash, class Eq >
@@ -83,37 +83,45 @@ namespace shramko
 
   template< class Key, class T, class Hash, class Eq >
   template< class InputIt >
-  HashTable< Key, T, Hash, Eq >::HashTable(InputIt firstIt, InputIt lastIt):
-    HashTable()
+  HashTable< Key, T, Hash, Eq >::HashTable(InputIt firstIt, InputIt lastIt)
+    : HashTable()
   {
     insert(firstIt, lastIt);
   }
 
   template< class Key, class T, class Hash, class Eq >
-  HashTable< Key, T, Hash, Eq >::HashTable(std::initializer_list< std::pair< Key, T > > init):
-    HashTable(init.begin(), init.end())
+  HashTable< Key, T, Hash, Eq >::HashTable(std::initializer_list< std::pair< const Key, T > > init)
+    : HashTable(init.begin(), init.end())
   {}
 
   template< class Key, class T, class Hash, class Eq >
-  HashTable< Key, T, Hash, Eq >::HashTable(const HashTable& rhs):
-    HashTable(rhs.capacity_)
+  HashTable< Key, T, Hash, Eq >::~HashTable() noexcept
+  {
+    delete[] slots_;
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  HashTable< Key, T, Hash, Eq >::HashTable(const HashTable& rhs)
+    : HashTable(rhs.capacity_)
   {
     for (size_t i = 0; i < capacity_; ++i)
     {
       if (rhs.slots_[i].occupied && !rhs.slots_[i].deleted)
       {
-        slots_[i] = rhs.slots_[i];
+        slots_[i].data = rhs.slots_[i].data;
+        slots_[i].occupied = true;
+        slots_[i].deleted = false;
       }
     }
     size_ = rhs.size_;
   }
 
   template< class Key, class T, class Hash, class Eq >
-  HashTable< Key, T, Hash, Eq >::HashTable(HashTable&& rhs) noexcept:
-    slots_(rhs.slots_),
-    capacity_(rhs.capacity_),
-    size_(rhs.size_),
-    max_load_factor_(rhs.max_load_factor_)
+  HashTable< Key, T, Hash, Eq >::HashTable(HashTable&& rhs) noexcept
+    : slots_(rhs.slots_),
+      capacity_(rhs.capacity_),
+      size_(rhs.size_),
+      max_load_factor_(rhs.max_load_factor_)
   {
     rhs.slots_ = nullptr;
     rhs.capacity_ = 0;

@@ -5,7 +5,7 @@
 #include <string>
 #include <ostream>
 #include "dictionary_manager.hpp"
-#include "FwdList.hpp"
+#include <common/FwdList/FwdList.hpp>
 
 using CommandFunction = std::function< void(const shramko::ForwardList< std::string >&, DictionaryManager&, std::ostream&) >;
 
