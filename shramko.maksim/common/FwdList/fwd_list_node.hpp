@@ -9,8 +9,8 @@ namespace shramko
     T dataValue;
     ListNode< T >* nextPtr;
 
-    ListNode(): 
-      nextPtr(nullptr) 
+    ListNode():
+      nextPtr(nullptr)
     {}
     ListNode(const T& value):
       dataValue(value),
