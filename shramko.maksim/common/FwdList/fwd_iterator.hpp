@@ -25,14 +25,14 @@ namespace shramko
       current_(node)
     {}
 
-    reference operator*() const 
-    { 
-      return current_->dataValue; 
+    reference operator*() const
+    {
+      return current_->dataValue;
     }
 
-    pointer operator->() const 
-    { 
-      return &(operator*()); 
+    pointer operator->() const
+    {
+      return &(operator*());
     }
 
     FwdIterator& operator++()
@@ -48,14 +48,14 @@ namespace shramko
       return tmp;
     }
 
-    bool operator==(const FwdIterator& other) const 
-    { 
-      return current_ == other.current_; 
+    bool operator==(const FwdIterator& other) const
+    {
+      return current_ == other.current_;
     }
 
-    bool operator!=(const FwdIterator& other) const 
-    { 
-      return !(*this == other); 
+    bool operator!=(const FwdIterator& other) const
+    {
+      return !(*this == other);
     }
 
   private:
