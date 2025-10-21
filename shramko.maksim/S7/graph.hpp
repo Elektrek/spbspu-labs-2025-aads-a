@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 #include <stdexcept>
-#include "hash_table.hpp"
+#include <HashTable/hash_table.hpp>
 
 namespace shramko
 {
