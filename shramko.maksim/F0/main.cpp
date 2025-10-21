@@ -22,7 +22,7 @@ shramko::ForwardList< std::string > splitString(const std::string& str)
   for (size_t i = start; i < end; ++i)
   {
     if (std::isspace(static_cast< unsigned char >(str[i])))
-  {
+    {
       if (!currentToken.empty())
       {
         tokens.addToBack(currentToken);

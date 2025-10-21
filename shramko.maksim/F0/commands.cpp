@@ -4,7 +4,6 @@
 #include "dictionary_manager.hpp"
 #include <common/FwdList/FwdList.hpp>
 #include <common/HashTable/hash_table.hpp>
-#include <algorithm>
 
 namespace shramko
 {

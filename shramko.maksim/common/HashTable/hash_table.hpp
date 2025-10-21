@@ -1,12 +1,6 @@
 #ifndef HASH_TABLE_HPP
 #define HASH_TABLE_HPP
 
-#include <algorithm>
-#include <cstddef>
-#include <initializer_list>
-#include <stdexcept>
-#include <utility>
-
 #include "iterator.hpp"
 #include "node.hpp"
 
@@ -16,7 +10,6 @@ namespace shramko
   class HashTable
   {
   public:
-    using value_type = std::pair<const Key, T>;
     using cIterator = HashConstIterator< Key, T, Hash, Eq >;
     using iterator = HashIterator< Key, T, Hash, Eq >;
 
@@ -27,7 +20,7 @@ namespace shramko
     HashTable(HashTable&& rhs) noexcept;
     template< class InputIt >
     HashTable(InputIt firstIt, InputIt lastIt);
-    HashTable(std::initializer_list< std::pair< Key, T > > init);
+    HashTable(std::initializer_list< std::pair< const Key, T > > init);
     HashTable& operator=(const HashTable& rhs);
     HashTable& operator=(HashTable&& rhs) noexcept;
 
@@ -97,7 +90,7 @@ namespace shramko
   }
 
   template< class Key, class T, class Hash, class Eq >
-  HashTable< Key, T, Hash, Eq >::HashTable(std::initializer_list< std::pair< Key, T > > init)
+  HashTable< Key, T, Hash, Eq >::HashTable(std::initializer_list< std::pair< const Key, T > > init)
     : HashTable(init.begin(), init.end())
   {}
 
@@ -115,8 +108,7 @@ namespace shramko
     {
       if (rhs.slots_[i].occupied && !rhs.slots_[i].deleted)
       {
-        slots_[i].key = rhs.slots_[i].key;
-        slots_[i].value = rhs.slots_[i].value;
+        slots_[i].data = rhs.slots_[i].data;
         slots_[i].occupied = true;
         slots_[i].deleted = false;
       }
@@ -213,43 +205,43 @@ namespace shramko
   template< class Key, class T, class Hash, class Eq >
   T& HashTable< Key, T, Hash, Eq >::at(const Key& key)
   {
-    size_t pos = this->find_position(key);
+    size_t pos = find_position(key);
     if (pos == capacity_)
     {
       throw std::out_of_range("Key not found");
     }
-    return slots_[pos].value;
+    return slots_[pos].data.second;
   }
 
   template< class Key, class T, class Hash, class Eq >
   const T& HashTable< Key, T, Hash, Eq >::at(const Key& key) const
   {
-    size_t pos = this->find_position(key);
+    size_t pos = find_position(key);
     if (pos == capacity_)
     {
       throw std::out_of_range("Key not found");
     }
-    return slots_[pos].value;
+    return slots_[pos].data.second;
   }
 
   template< class Key, class T, class Hash, class Eq >
   T& HashTable< Key, T, Hash, Eq >::operator[](const Key& key)
   {
-    auto inserted = this->insert(key, T{});
-    return (*inserted.first).second;
+    auto inserted = insert(key, T{});
+    return inserted.first->second;
   }
 
   template< class Key, class T, class Hash, class Eq >
   T& HashTable< Key, T, Hash, Eq >::operator[](Key&& key)
   {
-    auto inserted = this->insert(std::move(key), T{});
-    return (*inserted.first).second;
+    auto inserted = insert(std::move(key), T{});
+    return inserted.first->second;
   }
 
   template< class Key, class T, class Hash, class Eq >
   typename HashTable< Key, T, Hash, Eq >::iterator HashTable< Key, T, Hash, Eq >::find(const Key& key) noexcept
   {
-    size_t pos = this->find_position(key);
+    size_t pos = find_position(key);
     if (pos == capacity_)
     {
       return end();
@@ -260,7 +252,7 @@ namespace shramko
   template< class Key, class T, class Hash, class Eq >
   typename HashTable< Key, T, Hash, Eq >::cIterator HashTable< Key, T, Hash, Eq >::find(const Key& key) const noexcept
   {
-    size_t pos = this->find_position(key);
+    size_t pos = find_position(key);
     if (pos == capacity_)
     {
       return cend();
@@ -307,14 +299,13 @@ namespace shramko
     {
       if (slots_[i].occupied && !slots_[i].deleted)
       {
-        size_t h = this->compute_hash(slots_[i].key);
+        size_t h = compute_hash(slots_[i].data.first);
         for (size_t j = 0; j < capacity_; ++j)
         {
           size_t pos = (h + j * j) % capacity_;
           if (!newSlots[pos].occupied || newSlots[pos].deleted)
           {
-            newSlots[pos].key = std::move(slots_[i].key);
-            newSlots[pos].value = std::move(slots_[i].value);
+            newSlots[pos].data = std::move(slots_[i].data);
             newSlots[pos].occupied = true;
             newSlots[pos].deleted = false;
             break;
@@ -336,13 +327,13 @@ namespace shramko
   template< class Key, class T, class Hash, class Eq >
   size_t HashTable< Key, T, Hash, Eq >::find_position(const Key& key) const noexcept
   {
-    size_t h = this->compute_hash(key);
+    size_t h = compute_hash(key);
 
     for (size_t i = 0; i < capacity_; ++i)
     {
       size_t pos = (h + i * i) % capacity_;
 
-      if (slots_[pos].occupied && !slots_[pos].deleted && Eq{}(slots_[pos].key, key))
+      if (slots_[pos].occupied && !slots_[pos].deleted && Eq{}(slots_[pos].data.first, key))
       {
         return pos;
       }
@@ -359,7 +350,7 @@ namespace shramko
   template< class Key, class T, class Hash, class Eq >
   size_t HashTable< Key, T, Hash, Eq >::get_insert_position(const Key& key) const noexcept
   {
-    size_t h = this->compute_hash(key);
+    size_t h = compute_hash(key);
 
     for (size_t i = 0; i < capacity_; ++i)
     {
@@ -377,30 +368,29 @@ namespace shramko
   template< class Key, class T, class Hash, class Eq >
   std::pair< typename HashTable< Key, T, Hash, Eq >::iterator, bool > HashTable< Key, T, Hash, Eq >::insert(const Key& key, const T& value)
   {
-    if (this->loadFactor() >= this->max_load_factor_)
+    if (loadFactor() >= max_load_factor_)
     {
-      this->rehash(this->capacity_ * 2);
+      rehash(capacity_ * 2);
     }
 
-    size_t found = this->find_position(key);
+    size_t found = find_position(key);
 
     if (found != capacity_)
     {
       return {iterator(slots_, capacity_, found), false};
     }
 
-    size_t pos = this->get_insert_position(key);
+    size_t pos = get_insert_position(key);
 
     if (pos == capacity_)
     {
       throw std::runtime_error("ERROR: hash table is full");
     }
 
-    slots_[pos].key = key;
-    slots_[pos].value = value;
+    slots_[pos].data = {key, value};
     slots_[pos].occupied = true;
     slots_[pos].deleted = false;
-    ++size_;
+    size_++;
 
     return {iterator(slots_, capacity_, pos), true};
   }
@@ -411,7 +401,7 @@ namespace shramko
   {
     for (auto it = first; it != last; ++it)
     {
-      this->insert(it->first, it->second);
+      insert(it->first, it->second);
     }
   }
 
@@ -422,7 +412,7 @@ namespace shramko
 
     slots_[index].occupied = false;
     slots_[index].deleted = true;
-    --size_;
+    size_--;
 
     return iterator(slots_, capacity_, index);
   }
@@ -439,7 +429,7 @@ namespace shramko
   {
     iterator result;
 
-    for (auto it = first; it != last; )
+    for (auto it = first; it != last;)
     {
       result = erase(it++);
     }
@@ -450,13 +440,13 @@ namespace shramko
   template< class Key, class T, class Hash, class Eq >
   size_t HashTable< Key, T, Hash, Eq >::erase(const Key& key)
   {
-    size_t pos = this->find_position(key);
+    size_t pos = find_position(key);
 
     if (pos != capacity_)
     {
       slots_[pos].occupied = false;
       slots_[pos].deleted = true;
-      --size_;
+      size_--;
       return 1;
     }
 
@@ -495,9 +485,9 @@ namespace shramko
     {
       max_load_factor_ = ml;
 
-      if (this->loadFactor() > this->max_load_factor_)
+      if (loadFactor() > max_load_factor_)
       {
-        this->rehash(this->capacity_ * 2);
+        rehash(capacity_ * 2);
       }
     }
   }

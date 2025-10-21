@@ -98,7 +98,7 @@ bool DictionaryManager::loadFromFile(const std::string& dict_name, const std::st
       ),
       word.end()
     );
-  if (!word.empty())
+    if (!word.empty())
     {
       addWord(dict_name, word, 1);
     }
