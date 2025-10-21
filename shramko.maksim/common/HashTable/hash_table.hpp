@@ -10,6 +10,7 @@ namespace shramko
   class HashTable
   {
   public:
+    using value_type = std::pair<const Key, T>;
     using cIterator = HashConstIterator< Key, T, Hash, Eq >;
     using iterator = HashIterator< Key, T, Hash, Eq >;
 
@@ -20,7 +21,7 @@ namespace shramko
     HashTable(HashTable&& rhs) noexcept;
     template< class InputIt >
     HashTable(InputIt firstIt, InputIt lastIt);
-    HashTable(std::initializer_list< std::pair< const Key, T > > init);
+    HashTable(std::initializer_list< std::pair< Key, T > > init);
     HashTable& operator=(const HashTable& rhs);
     HashTable& operator=(HashTable&& rhs) noexcept;
 
@@ -90,7 +91,7 @@ namespace shramko
   }
 
   template< class Key, class T, class Hash, class Eq >
-  HashTable< Key, T, Hash, Eq >::HashTable(std::initializer_list< std::pair< const Key, T > > init)
+  HashTable< Key, T, Hash, Eq >::HashTable(std::initializer_list< std::pair< Key, T > > init)
     : HashTable(init.begin(), init.end())
   {}
 
@@ -108,7 +109,8 @@ namespace shramko
     {
       if (rhs.slots_[i].occupied && !rhs.slots_[i].deleted)
       {
-        slots_[i].data = rhs.slots_[i].data;
+        slots_[i].key = rhs.slots_[i].key;
+        slots_[i].value = rhs.slots_[i].value;
         slots_[i].occupied = true;
         slots_[i].deleted = false;
       }
@@ -210,7 +212,7 @@ namespace shramko
     {
       throw std::out_of_range("Key not found");
     }
-    return slots_[pos].data.second;
+    return slots_[pos].value;
   }
 
   template< class Key, class T, class Hash, class Eq >
@@ -221,7 +223,7 @@ namespace shramko
     {
       throw std::out_of_range("Key not found");
     }
-    return slots_[pos].data.second;
+    return slots_[pos].value;
   }
 
   template< class Key, class T, class Hash, class Eq >
@@ -299,13 +301,14 @@ namespace shramko
     {
       if (slots_[i].occupied && !slots_[i].deleted)
       {
-        size_t h = compute_hash(slots_[i].data.first);
+        size_t h = compute_hash(slots_[i].key);
         for (size_t j = 0; j < capacity_; ++j)
         {
           size_t pos = (h + j * j) % capacity_;
           if (!newSlots[pos].occupied || newSlots[pos].deleted)
           {
-            newSlots[pos].data = std::move(slots_[i].data);
+            newSlots[pos].key = std::move(slots_[i].key);
+            newSlots[pos].value = std::move(slots_[i].value);
             newSlots[pos].occupied = true;
             newSlots[pos].deleted = false;
             break;
@@ -333,7 +336,7 @@ namespace shramko
     {
       size_t pos = (h + i * i) % capacity_;
 
-      if (slots_[pos].occupied && !slots_[pos].deleted && Eq{}(slots_[pos].data.first, key))
+      if (slots_[pos].occupied && !slots_[pos].deleted && Eq{}(slots_[pos].key, key))
       {
         return pos;
       }
@@ -387,7 +390,8 @@ namespace shramko
       throw std::runtime_error("ERROR: hash table is full");
     }
 
-    slots_[pos].data = {key, value};
+    slots_[pos].key = key;
+    slots_[pos].value = value;
     slots_[pos].occupied = true;
     slots_[pos].deleted = false;
     size_++;

@@ -3,29 +3,23 @@
 
 #include <cassert>
 
+#include "node.hpp"
+
 namespace shramko
 {
   template < class Key, class T, class Hash, class Eq >
   class HashIterator
   {
   public:
-    using node = Node< Key, T >;
-    using value_type = std::pair< Key, T >;
+    using value_type = std::pair< const Key, T >;
     using pointer = value_type*;
     using reference = value_type&;
     using difference_type = ptrdiff_t;
     using iterator_category = std::forward_iterator_tag;
 
-    HashIterator():
-      slots_(nullptr),
-      capacity_(0),
-      current_(0)
-    {}
+    HashIterator() : slots_(nullptr), capacity_(0), current_(0) {}
 
-    HashIterator(node* slots, size_t capacity, size_t current):
-      slots_(slots),
-      capacity_(capacity),
-      current_(current)
+    HashIterator(Node< Key, T >* slots, size_t capacity, size_t current) : slots_(slots), capacity_(capacity), current_(current)
     {
       find_occupied();
     }
@@ -33,7 +27,7 @@ namespace shramko
     reference operator*()
     {
       assert(current_ < capacity_ && slots_[current_].occupied && !slots_[current_].deleted);
-      return slots_[current_].data;
+      return value_type{slots_[current_].key, slots_[current_].value};
     }
 
     pointer operator->()
@@ -66,7 +60,7 @@ namespace shramko
     }
 
   private:
-    node* slots_;
+    Node< Key, T >* slots_;
     size_t capacity_;
     size_t current_;
 
@@ -83,8 +77,7 @@ namespace shramko
   class HashConstIterator
   {
   public:
-    using node = Node< Key, T >;
-    using value_type = std::pair< Key, T >;
+    using value_type = std::pair< const Key, T >;
     using pointer = const value_type*;
     using reference = const value_type&;
     using difference_type = ptrdiff_t;
@@ -92,16 +85,9 @@ namespace shramko
 
     using this_t = HashConstIterator< Key, T, Hash, Eq >;
 
-    HashConstIterator():
-      slots_(nullptr),
-      capacity_(0),
-      current_(0)
-    {}
+    HashConstIterator() : slots_(nullptr), capacity_(0), current_(0) {}
 
-    HashConstIterator(const node* slots, size_t capacity, size_t current):
-      slots_(slots),
-      capacity_(capacity),
-      current_(current)
+    HashConstIterator(const Node< Key, T >* slots, size_t capacity, size_t current) : slots_(slots), capacity_(capacity), current_(current)
     {
       find_occupied();
     }
@@ -109,7 +95,7 @@ namespace shramko
     reference operator*() const
     {
       assert(current_ < capacity_ && slots_[current_].occupied && !slots_[current_].deleted);
-      return slots_[current_].data;
+      return value_type{slots_[current_].key, slots_[current_].value};
     }
 
     pointer operator->() const
@@ -142,7 +128,7 @@ namespace shramko
     }
 
   private:
-    const node* slots_;
+    const Node< Key, T >* slots_;
     size_t capacity_;
     size_t current_;
 

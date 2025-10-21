@@ -8,14 +8,12 @@ namespace shramko
   template < class Key, class T >
   struct Node
   {
-    std::pair< const Key, T > data;
+    Key key;
+    T value;
     bool occupied;
     bool deleted;
 
-    Node():
-      occupied(false),
-      deleted(false)
-    {}
+    Node() : occupied(false), deleted(false) {}
   };
 }
 

@@ -15,6 +15,7 @@ namespace shramko
   class UBstTree
   {
   public:
+    using value_type = std::pair<const Key, Value>;
     using const_iterator = ConstIterator< Key, Value, Compare >;
     using const_reverse_iterator = std::reverse_iterator< const_iterator >;
 
@@ -176,11 +177,11 @@ namespace shramko
     Node< Key, Value >* node = findNode(root_, key);
     if (node)
     {
-      return node->data.second;
+      return node->value;
     }
     root_ = insertNode(root_, key, Value{}, nullptr, size_);
     node = findNode(root_, key);
-    return node->data.second;
+    return node->value;
   }
 
   template < typename Key, typename Value, typename Compare >
@@ -197,7 +198,7 @@ namespace shramko
     {
       throw std::out_of_range("Key not found");
     }
-    return node->data.second;
+    return node->value;
   }
 
   template < typename Key, typename Value, typename Compare >
@@ -208,7 +209,7 @@ namespace shramko
     {
       throw std::out_of_range("Key not found");
     }
-    return node->data.second;
+    return node->value;
   }
 
   template < typename Key, typename Value, typename Compare >
@@ -256,7 +257,7 @@ namespace shramko
       }
       current = stack.top();
       stack.pop();
-      f(current->data);
+      f(value_type{current->key, current->value});
       current = current->right;
     }
     return f;
@@ -277,7 +278,7 @@ namespace shramko
       }
       current = stack.top();
       stack.pop();
-      f(current->data);
+      f(value_type{current->key, current->value});
       current = current->left;
     }
     return f;
@@ -297,7 +298,7 @@ namespace shramko
     {
       const Node< Key, Value >* current = queue.front();
       queue.pop();
-      f(current->data);
+      f(value_type{current->key, current->value});
       if (current->left)
       {
         queue.push(current->left);
@@ -317,11 +318,11 @@ namespace shramko
     {
       return nullptr;
     }
-    if (comp_(key, node->data.first))
+    if (comp_(key, node->key))
     {
       return findNode(node->left, key);
     }
-    else if (comp_(node->data.first, key))
+    else if (comp_(node->key, key))
     {
       return findNode(node->right, key);
     }
@@ -335,11 +336,11 @@ namespace shramko
     {
       return nullptr;
     }
-    if (comp_(key, node->data.first))
+    if (comp_(key, node->key))
     {
       return findNode(node->left, key);
     }
-    else if (comp_(node->data.first, key))
+    else if (comp_(node->key, key))
     {
       return findNode(node->right, key);
     }
@@ -397,17 +398,17 @@ namespace shramko
       ++size;
       return newNode;
     }
-    if (comp_(key, node->data.first))
+    if (comp_(key, node->key))
     {
       node->left = insertNode(node->left, key, value, node, size);
     }
-    else if (comp_(node->data.first, key))
+    else if (comp_(node->key, key))
     {
       node->right = insertNode(node->right, key, value, node, size);
     }
     else
     {
-      node->data.second = value;
+      node->value = value;
     }
     return node;
   }
@@ -422,7 +423,7 @@ namespace shramko
       node = nullptr;
       return;
     }
-    node = new Node< Key, Value >(otherNode->data.first, otherNode->data.second);
+    node = new Node< Key, Value >(otherNode->key, otherNode->value);
     node->parent = parent;
     ++size_;
     try
@@ -465,44 +466,52 @@ namespace shramko
       return node;
     }
 
-    if (comp_(key, node->data.first))
+    if (comp_(key, node->key))
     {
       node->left = eraseNode(node->left, key, size);
     }
-    else if (comp_(node->data.first, key))
+    else if (comp_(node->key, key))
     {
       node->right = eraseNode(node->right, key, size);
     }
     else
     {
-      if (!node->left && !node->right)
+      Node< Key, Value >* temp = nullptr;
+      if (!node->left)
       {
-        delete node;
-        --size;
-        return nullptr;
-      }
-      else if (!node->left)
-      {
-        Node< Key, Value >* temp = node->right;
-        temp->parent = node->parent;
-        delete node;
-        --size;
-        return temp;
+        temp = node->right;
       }
       else if (!node->right)
       {
-        Node< Key, Value >* temp = node->left;
-        temp->parent = node->parent;
-        delete node;
-        --size;
-        return temp;
+        temp = node->left;
       }
       else
       {
-        const Node< Key, Value >* minRight = minNode(node->right);
-        node->data = minRight->data;
-        node->right = eraseNode(node->right, minRight->data.first, size);
+        Node< Key, Value >* minRight = const_cast<Node< Key, Value >*>(minNode(node->right));
+        if (minRight->parent != node)
+        {
+          minRight->parent->left = minRight->right;
+          if (minRight->right)
+          {
+            minRight->right->parent = minRight->parent;
+          }
+          minRight->right = node->right;
+          node->right->parent = minRight;
+        }
+        minRight->left = node->left;
+        if (node->left)
+        {
+          node->left->parent = minRight;
+        }
+        temp = minRight;
       }
+      if (temp)
+      {
+        temp->parent = node->parent;
+      }
+      delete node;
+      --size;
+      return temp;
     }
     return node;
   }
