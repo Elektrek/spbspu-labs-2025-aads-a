@@ -11,8 +11,8 @@ namespace shramko
   {
   public:
     using value_type = std::pair< const Key, Value >;
-    using pointer = const value_type*;
-    using reference = const value_type&;
+    using pointer = value_type*;
+    using reference = value_type;
     using difference_type = ptrdiff_t;
     using iterator_category = std::bidirectional_iterator_tag;
 
@@ -24,14 +24,18 @@ namespace shramko
       node_(node)
     {}
 
-    reference operator*() const
+    const value_type& operator*() const
     {
-      return value_type{node_->key, node_->value};
+      static thread_local value_type temp;
+      temp = {node_->key, node_->value};
+      return temp;
     }
 
-    pointer operator->() const
+    const value_type* operator->() const
     {
-      return &(operator*());
+      static thread_local value_type temp;
+      temp = {node_->key, node_->value};
+      return &temp;
     }
 
     ConstIterator& operator++()

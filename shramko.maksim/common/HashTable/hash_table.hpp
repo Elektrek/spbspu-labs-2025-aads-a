@@ -230,14 +230,14 @@ namespace shramko
   T& HashTable< Key, T, Hash, Eq >::operator[](const Key& key)
   {
     auto inserted = insert(key, T{});
-    return inserted.first->second;
+    return inserted.first.second;
   }
 
   template< class Key, class T, class Hash, class Eq >
   T& HashTable< Key, T, Hash, Eq >::operator[](Key&& key)
   {
     auto inserted = insert(std::move(key), T{});
-    return inserted.first->second;
+    return inserted.first.second;
   }
 
   template< class Key, class T, class Hash, class Eq >

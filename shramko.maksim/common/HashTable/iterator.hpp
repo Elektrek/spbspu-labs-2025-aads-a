@@ -13,7 +13,7 @@ namespace shramko
   public:
     using value_type = std::pair< const Key, T >;
     using pointer = value_type*;
-    using reference = value_type&;
+    using reference = value_type;
     using difference_type = ptrdiff_t;
     using iterator_category = std::forward_iterator_tag;
 
@@ -24,16 +24,19 @@ namespace shramko
       find_occupied();
     }
 
-    reference operator*()
+    value_type& operator*()
     {
-      assert(current_ < capacity_ && slots_[current_].occupied && !slots_[current_].deleted);
-      return value_type{slots_[current_].key, slots_[current_].value};
+      static thread_local value_type temp;
+      temp = {slots_[current_].key, slots_[current_].value};
+      return temp;
     }
 
-    pointer operator->()
-    {
-      return std::addressof(operator*());
-    }
+  value_type* operator->()
+  {
+    static thread_local value_type temp;
+    temp = {slots_[current_].key, slots_[current_].value};
+    return &temp;
+  }
 
     HashIterator& operator++()
     {
@@ -79,7 +82,7 @@ namespace shramko
   public:
     using value_type = std::pair< const Key, T >;
     using pointer = const value_type*;
-    using reference = const value_type&;
+    using reference = value_type;
     using difference_type = ptrdiff_t;
     using iterator_category = std::forward_iterator_tag;
 
@@ -92,7 +95,7 @@ namespace shramko
       find_occupied();
     }
 
-    reference operator*() const
+    value_type operator*() const
     {
       assert(current_ < capacity_ && slots_[current_].occupied && !slots_[current_].deleted);
       return value_type{slots_[current_].key, slots_[current_].value};
@@ -139,6 +142,8 @@ namespace shramko
         ++current_;
       }
     }
+
+    friend class HashTable< Key, T, Hash, Eq >;
   };
 }
 
