@@ -4,9 +4,6 @@
 #include "dictionary_manager.hpp"
 #include <FwdList/FwdList.hpp>
 #include <HashTable/hash_table.hpp>
-#include <string>
-#include <utility>
-#include <functional>
 
 namespace shramko
 {
@@ -299,7 +296,7 @@ void bot(const shramko::ForwardList< std::string >& args, DictionaryManager& dm,
     items.addToBack(*dictIt);
   }
   items.sort(shramko::compareByFreqAsc);
-  os << "BOT " << n << ": ";
+  os << "bot " << n << ": ";
   size_t count = 0;
   auto itemIt = items.begin();
   while (itemIt != items.end() && count < static_cast<size_t>(n))
@@ -452,13 +449,14 @@ void median(const shramko::ForwardList< std::string >& args, DictionaryManager& 
 
 struct OneArgCaller
 {
-  CommandFunction func;
-  OneArgCaller(const CommandFunction& f): func(f) {}
+  void (*func)(const shramko::ForwardList< std::string >&, DictionaryManager&, std::ostream&);
+  OneArgCaller(void (*f)(const shramko::ForwardList< std::string >&, DictionaryManager&, std::ostream&)):
+    func(f)
+  {}
   void operator()(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os) const
   {
     func(args, dm, os);
   }
-  operator CommandFunction() const { return func; }
 };
 
 shramko::HashTable< std::string, CommandFunction > createCommandMap()
