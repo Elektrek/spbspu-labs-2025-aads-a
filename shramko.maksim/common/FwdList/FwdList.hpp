@@ -15,8 +15,8 @@ namespace shramko
   class ForwardList
   {
   public:
-    using const_iterator = ConstIterator< T >;
-    using iterator = Iterator< T >;
+    using const_iterator = FwdConstIterator< T >;
+    using iterator = FwdIterator< T >;
 
     ForwardList();
     ~ForwardList() noexcept;
@@ -128,39 +128,39 @@ shramko::ForwardList< T >& shramko::ForwardList< T >::operator=(ForwardList< T >
 }
 
 template< typename T >
-shramko::Iterator< T > shramko::ForwardList< T >::begin() noexcept
+shramko::FwdIterator< T > shramko::ForwardList< T >::begin() noexcept
 {
-  return iterator(headNode_);
+  return FwdIterator< T >(headNode_);
 }
 
 template< typename T >
-shramko::Iterator< T > shramko::ForwardList< T >::end() noexcept
+shramko::FwdIterator< T > shramko::ForwardList< T >::end() noexcept
 {
-  return iterator(nullptr);
+  return FwdIterator< T >(nullptr);
 }
 
 template< typename T >
-shramko::ConstIterator< T > shramko::ForwardList< T >::begin() const noexcept
+shramko::FwdConstIterator< T > shramko::ForwardList< T >::begin() const noexcept
 {
-  return const_iterator(headNode_);
+  return FwdConstIterator< T >(headNode_);
 }
 
 template< typename T >
-shramko::ConstIterator< T > shramko::ForwardList< T >::end() const noexcept
+shramko::FwdConstIterator< T > shramko::ForwardList< T >::end() const noexcept
 {
-  return const_iterator(nullptr);
+  return FwdConstIterator< T >(nullptr);
 }
 
 template< typename T >
-shramko::ConstIterator< T > shramko::ForwardList< T >::cbegin() const noexcept
+shramko::FwdConstIterator< T > shramko::ForwardList< T >::cbegin() const noexcept
 {
-  return const_iterator(headNode_);
+  return FwdConstIterator< T >(headNode_);
 }
 
 template< typename T >
-shramko::ConstIterator< T > shramko::ForwardList< T >::cend() const noexcept
+shramko::FwdConstIterator< T > shramko::ForwardList< T >::cend() const noexcept
 {
-  return const_iterator(nullptr);
+  return FwdConstIterator< T >(nullptr);
 }
 
 template< typename T >
