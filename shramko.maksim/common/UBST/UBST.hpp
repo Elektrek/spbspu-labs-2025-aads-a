@@ -33,6 +33,7 @@ namespace shramko
     const Value& operator[](const Key& key) const;
     Value& at(const Key& key);
     const Value& at(const Key& key) const;
+    size_t erase(const Key& key);
 
     const_iterator cbegin() const noexcept;
     const_iterator cend() const noexcept;
@@ -59,7 +60,9 @@ namespace shramko
     void clearNode(Node< Key, Value >* node);
 
     Node< Key, Value >* insertNode(Node< Key, Value >* node, const Key& key,
-                                   const Value& value, Node< Key, Value >* parent, size_t& size);
+      const Value& value, Node< Key, Value >* parent, size_t& size);
+    
+    Node< Key, Value >* findNodeNonConst(Node< Key, Value >* node, const Key& key);
 
     Node< Key, Value >* findNode(Node< Key, Value >* node, const Key& key);
     const Node< Key, Value >* findNode(const Node< Key, Value >* node, const Key& key) const;
@@ -449,6 +452,76 @@ namespace shramko
       --size_;
       throw;
     }
+  }
+
+    template < typename Key, typename Value, typename Compare >
+  Node< Key, Value >* UBstTree< Key, Value, Compare >::findNodeNonConst(Node< Key, Value >* node, const Key& key)
+  {
+    if (!node)
+    {
+      return nullptr;
+    }
+    if (comp_(key, node->data.first))
+    {
+      return findNodeNonConst(node->left, key);
+    }
+    else if (comp_(node->data.first, key))
+    {
+      return findNodeNonConst(node->right, key);
+    }
+    return node;
+  }
+
+  template < typename Key, typename Value, typename Compare >
+  size_t UBstTree< Key, Value, Compare >::erase(const Key& key)
+  {
+    Node< Key, Value >* toDel = findNodeNonConst(root_, key);
+    if (!toDel)
+    {
+      return 0;
+    }
+    --size_;
+    if (!toDel->left || !toDel->right)
+    {
+      Node< Key, Value >* child = toDel->left ? toDel->left : toDel->right;
+      if (child)
+      {
+        child->parent = toDel->parent;
+      }
+      if (!toDel->parent)
+      {
+        root_ = child;
+      }
+      else if (toDel == toDel->parent->left)
+      {
+        toDel->parent->left = child;
+      }
+      else
+      {
+        toDel->parent->right = child;
+      }
+      delete toDel;
+    }
+    else
+    {
+      Node< Key, Value >* succ = minNode(toDel->right);
+      toDel->data = succ->data;
+      Node< Key, Value >* sparent = succ->parent;
+      if (sparent->left == succ)
+      {
+        sparent->left = succ->right;
+      }
+      else
+      {
+        sparent->right = succ->right;
+      }
+      if (succ->right)
+      {
+        succ->right->parent = sparent;
+      }
+      delete succ;
+    }
+    return 1;
   }
 }
 

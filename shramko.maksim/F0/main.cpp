@@ -1,112 +1,58 @@
-#include <iostream>
 #include <string>
-#include <vector>
-#include <fstream>
-#include <algorithm>
-#include <cctype>
-#include <stdexcept>
-#include "dictionary_manager.hpp"
+#include <limits>
+#include <iostream>
+#include <functional>
 #include "commands.hpp"
-#include <FwdList/FwdList.hpp>
 
-shramko::ForwardList< std::string > splitString(const std::string& str)
+int main(int argc, char * argv[])
 {
-  std::vector< std::string > temp_tokens;
-  std::string currentToken;
-  size_t start = 0;
-  size_t end = str.length();
-
-  while (start < end && std::isspace(static_cast< unsigned char >(str[start])))
-  {
-    start++;
-  }
-
-  for (size_t i = start; i < end; ++i)
-  {
-    if (std::isspace(static_cast< unsigned char >(str[i])))
-    {
-      if (!currentToken.empty())
-      {
-        temp_tokens.push_back(currentToken);
-        currentToken.clear();
-      }
-    }
-    else
-    {
-      currentToken += str[i];
-    }
-  }
-
-  if (!currentToken.empty())
-  {
-    temp_tokens.push_back(currentToken);
-  }
-
-  shramko::ForwardList< std::string > tokens;
-  for (const auto& tok : temp_tokens)
-  {
-    tokens.addToBack(tok);
-  }
-  return tokens;
-}
-
-int main(int argc, char* argv[])
-{
-  DictionaryManager dm;
-  auto commandMap = createCommandMap();
+  using namespace freq_analysis;
+  DictCollection dicts;
 
   if (argc == 2)
   {
-    std::string file = argv[1];
-    if (!dm.createDict("main"))
+    std::string arg = argv[1];
+    if (arg == "--help")
     {
-      std::cout << "DICT EXISTS\n";
-    }
-    else if (!dm.loadFromFile("main", file))
-    {
-      std::cout << "FILE NOT FOUND\n";
+      printHelp(std::cout);
+      return 0;
     }
   }
 
-  std::string line;
-  while (std::getline(std::cin, line))
+  shramko::HashTable< std::string, std::function< void() > > cmds;
+  cmds["create"] = std::bind(create, std::ref(std::cin), std::ref(dicts), std::ref(std::cout));
+  cmds["add"] = std::bind(addWord, std::ref(std::cin), std::ref(dicts), std::ref(std::cout));
+  cmds["increment"] = std::bind(incrementWord, std::ref(std::cin), std::ref(dicts), std::ref(std::cout));
+  cmds["search"] = std::bind(searchWord, std::ref(std::cin), std::ref(dicts), std::ref(std::cout));
+  cmds["delete"] = std::bind(deleteWord, std::ref(std::cin), std::ref(dicts), std::ref(std::cout));
+  cmds["dump"] = std::bind(dumpDict, std::ref(std::cin), std::ref(dicts), std::ref(std::cout));
+  cmds["top"] = std::bind(topWords, std::ref(std::cin), std::ref(dicts), std::ref(std::cout));
+  cmds["bot"] = std::bind(botWords, std::ref(std::cin), std::ref(dicts), std::ref(std::cout));
+  cmds["minfreq"] = std::bind(minFreqWords, std::ref(std::cin), std::ref(dicts), std::ref(std::cout));
+  cmds["maxfreq"] = std::bind(maxFreqWords, std::ref(std::cin), std::ref(dicts), std::ref(std::cout));
+  cmds["median"] = std::bind(medianFreq, std::ref(std::cin), std::ref(dicts), std::ref(std::cout));
+
+  std::string command;
+  while (!(std::cin >> command).eof())
   {
-    if (line.empty())
+    try
     {
-      continue;
+      cmds.at(command)();
     }
-
-    shramko::ForwardList< std::string > tokens = splitString(line);
-    if (tokens.isEmpty())
+    catch (const std::out_of_range &)
     {
-      continue;
+      std::cout << "<INVALID COMMAND>\n";
     }
-
-    std::string commandName = tokens.getFront();
-    tokens.removeFront();
-    shramko::ForwardList< std::string > args = tokens;
-
-    auto cmd_it = commandMap.find(commandName);
-    if (cmd_it != commandMap.cend())
+    catch (const std::runtime_error & e)
     {
-      try
-      {
-        cmd_it->second(args, dm, std::cout);
-      }
-      catch (const std::exception& e)
-      {
-        std::cout << "ERROR Unhandled exception: " << e.what() << "\n";
-      }
-      catch (...)
-      {
-        std::cout << "ERROR Unknown unhandled exception occurred.\n";
-      }
+      printError(e.what(), std::cout);
     }
-    else
+    catch (const std::exception & e)
     {
-      std::cout << "INVALID COMMAND\n";
+      std::cout << e.what() << '\n';
     }
+    std::cin.clear();
+    std::cin.ignore(std::numeric_limits< std::streamsize >::max(), '\n');
   }
-
   return 0;
 }

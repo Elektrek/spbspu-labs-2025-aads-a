@@ -1,27 +1,36 @@
 #ifndef COMMANDS_HPP
 #define COMMANDS_HPP
 
-#include <functional>
+#include <iostream>
 #include <string>
-#include <ostream>
-#include <FwdList/FwdList.hpp>
+#include <vector>
+#include <algorithm>
+#include <iomanip>
+#include <utility>
+
+#include <UBST/UBST.hpp>
 #include <HashTable/hash_table.hpp>
-#include "dictionary_manager.hpp"
+#include <FwdList/FwdList.hpp>
 
-using CommandFunction = std::function< void(const shramko::ForwardList<std::string>&, DictionaryManager&, std::ostream&) >;
+namespace freq_analysis
+{
+  using FrequencyDict = shramko::UBstTree< std::string, size_t >;
+  using DictCollection = shramko::HashTable< std::string, FrequencyDict >;
 
-shramko::hash_table::HashTable<std::string, CommandFunction> createCommandMap();
+  void create(std::istream & in, DictCollection & dicts, std::ostream & out);
+  void addWord(std::istream & in, DictCollection & dicts, std::ostream & out);
+  void incrementWord(std::istream & in, DictCollection & dicts, std::ostream & out);
+  void searchWord(std::istream & in, const DictCollection & dicts, std::ostream & out);
+  void deleteWord(std::istream & in, DictCollection & dicts, std::ostream & out);
+  void dumpDict(std::istream & in, const DictCollection & dicts, std::ostream & out);
+  void topWords(std::istream & in, const DictCollection & dicts, std::ostream & out);
+  void botWords(std::istream & in, const DictCollection & dicts, std::ostream & out);
+  void minFreqWords(std::istream & in, const DictCollection & dicts, std::ostream & out);
+  void maxFreqWords(std::istream & in, const DictCollection & dicts, std::ostream & out);
+  void medianFreq(std::istream & in, const DictCollection & dicts, std::ostream & out);
 
-void create(const shramko::ForwardList<std::string>& args, DictionaryManager& dm, std::ostream& os);
-void add(const shramko::ForwardList<std::string>& args, DictionaryManager& dm, std::ostream& os);
-void increment(const shramko::ForwardList<std::string>& args, DictionaryManager& dm, std::ostream& os);
-void search(const shramko::ForwardList<std::string>& args, DictionaryManager& dm, std::ostream& os);
-void delete_(const shramko::ForwardList<std::string>& args, DictionaryManager& dm, std::ostream& os);
-void dump(const shramko::ForwardList<std::string>& args, DictionaryManager& dm, std::ostream& os);
-void top(const shramko::ForwardList<std::string>& args, DictionaryManager& dm, std::ostream& os);
-void bot(const shramko::ForwardList<std::string>& args, DictionaryManager& dm, std::ostream& os);
-void minfreq(const shramko::ForwardList<std::string>& args, DictionaryManager& dm, std::ostream& os);
-void maxfreq(const shramko::ForwardList<std::string>& args, DictionaryManager& dm, std::ostream& os);
-void median(const shramko::ForwardList<std::string>& args, DictionaryManager& dm, std::ostream& os);
+  void printHelp(std::ostream & out);
+  void printError(const std::string & message, std::ostream & out);
+}
 
 #endif

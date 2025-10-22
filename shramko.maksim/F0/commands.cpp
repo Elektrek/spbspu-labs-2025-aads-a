@@ -1,458 +1,397 @@
 #include "commands.hpp"
-#include <iostream>
-#include <vector>
-#include <algorithm>
-#include <string>
 #include <sstream>
-#include <FwdList/FwdList.hpp>
-#include <UBST/UBST.hpp>
-#include <HashTable/hash_table.hpp>
+#include <stdexcept>
 
-void create(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
+namespace
 {
-  if (args.getSize() != 1)
+  bool dictExists(const std::string & name, const freq_analysis::DictCollection & dicts)
   {
-    os << "INVALID COMMAND\n";
-    return;
+    return dicts.find(name) != dicts.cend();
   }
-  auto it = args.cbegin();
-  std::string name = *it;
-  if (dm.createDict(name))
+
+  bool wordExists(const std::string & dictName, const std::string & word, const freq_analysis::DictCollection & dicts)
   {
-    os << "OK: Dictionary '" << name << "' created\n";
-  }
-  else
-  {
-    os << "DICT EXISTS\n";
+    auto dit = dicts.find(dictName);
+    if (dit == dicts.cend())
+    {
+      return false;
+    }
+    return dit->second.find(word) != dit->second.cend();
   }
 }
 
-void add(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
+void freq_analysis::create(std::istream & in, DictCollection & dicts, std::ostream & out)
 {
-  if (args.getSize() != 2 && args.getSize() != 3)
+  std::string name;
+  if (!(in >> name))
   {
-    os << "INVALID COMMAND\n";
-    return;
+    throw std::runtime_error("invalid arguments for create");
   }
-  auto it = args.cbegin();
-  std::string dict_name = *it;
-  ++it;
-  std::string word = *it;
-  int freq = 1;
-  if (args.getSize() == 3)
+  if (dictExists(name, dicts))
   {
-    ++it;
-    std::string freq_part = *it;
-    if (freq_part.substr(0, 5) != "freq:")
-    {
-      os << "INVALID COMMAND\n";
-      return;
-    }
+    throw std::runtime_error("DICT EXISTS");
+  }
+  dicts[name] = FrequencyDict{};
+  out << "OK: Dictionary '" << name << "' created\n";
+}
+
+void freq_analysis::addWord(std::istream & in, DictCollection & dicts, std::ostream & out)
+{
+  std::string dictName, word, opt;
+  size_t freq = 1;
+  if (!(in >> dictName >> word))
+  {
+    throw std::runtime_error("invalid arguments for add");
+  }
+  if (!dictExists(dictName, dicts))
+  {
+    throw std::runtime_error("DICT NOT FOUND");
+  }
+  if (in >> opt && opt.substr(0, 5) == "freq:")
+  {
     try
     {
-      freq = std::stoi(freq_part.substr(5));
+      freq = std::stoul(opt.substr(5));
     }
     catch (...)
     {
-      os << "INVALID COMMAND\n";
-      return;
+      throw std::runtime_error("invalid frequency");
     }
   }
-  if (dm.addWord(dict_name, word, freq))
+  else if (in >> opt)
   {
-    os << "OK: Added '" << word << "' with freq=" << freq << "\n";
+    throw std::runtime_error("invalid arguments for add");
   }
-  else
-  {
-    os << "DICT NOT FOUND\n";
-  }
+  auto & dict = dicts.at(dictName);
+  size_t newFreq = dict[word] + freq;
+  dict[word] = newFreq;
+  out << "OK: Added '" << word << "' with freq=" << newFreq << "\n";
 }
 
-void increment(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
+void freq_analysis::incrementWord(std::istream & in, DictCollection & dicts, std::ostream & out)
 {
-  if (args.getSize() != 2 && args.getSize() != 3)
+  std::string dictName, word, opt;
+  size_t inc = 1;
+  if (!(in >> dictName >> word))
   {
-    os << "INVALID COMMAND\n";
-    return;
+    throw std::runtime_error("invalid arguments for increment");
   }
-  auto it = args.cbegin();
-  std::string dict_name = *it;
-  ++it;
-  std::string word = *it;
-  int by = 1;
-  if (args.getSize() == 3)
+  if (!dictExists(dictName, dicts))
   {
-    ++it;
-    std::string by_part = *it;
-    if (by_part.substr(0, 3) != "by:")
-    {
-      os << "INVALID COMMAND\n";
-      return;
-    }
+    throw std::runtime_error("DICT NOT FOUND");
+  }
+  if (in >> opt && opt.substr(0, 3) == "by:")
+  {
     try
     {
-      by = std::stoi(by_part.substr(3));
+      inc = std::stoul(opt.substr(3));
     }
     catch (...)
     {
-      os << "INVALID COMMAND\n";
-      return;
+      throw std::runtime_error("invalid increment value");
     }
   }
-  if (dm.addWord(dict_name, word, by))
+  else if (in >> opt)
   {
-    os << "OK: Incremented '" << word << "' by " << by << "\n";
+    throw std::runtime_error("invalid arguments for increment");
   }
-  else
-  {
-    os << "DICT NOT FOUND\n";
-  }
+  auto & dict = dicts.at(dictName);
+  dict[word] += inc;
+  out << "OK: Incremented '" << word << "' by " << inc << "\n";
 }
 
-void search(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
+void freq_analysis::searchWord(std::istream & in, const DictCollection & dicts, std::ostream & out)
 {
-  if (args.getSize() != 2)
+  std::string dictName, word;
+  if (!(in >> dictName >> word))
   {
-    os << "INVALID COMMAND\n";
+    throw std::runtime_error("invalid arguments for search");
+  }
+  if (!dictExists(dictName, dicts))
+  {
+    throw std::runtime_error("DICT NOT FOUND");
+  }
+  const auto & dict = dicts.at(dictName);
+  auto it = dict.find(word);
+  if (it == dict.cend())
+  {
+    out << "NOT FOUND\n";
     return;
   }
-  auto it = args.cbegin();
-  std::string dict_name = *it;
-  ++it;
-  std::string word = *it;
-  const auto* dict = dm.getDict(dict_name);
-  if (!dict)
-  {
-    os << "DICT NOT FOUND\n";
-    return;
-  }
-  auto dit = dict->find(word);
-  if (dit == dict->cend())
-  {
-    os << "NOT FOUND\n";
-  }
-  else
-  {
-    os << "FOUND: freq=" << dit->second << "\n";
-  }
+  out << "FOUND: freq=" << it->second << "\n";
 }
 
-void delete_(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
+void freq_analysis::deleteWord(std::istream & in, DictCollection & dicts, std::ostream & out)
 {
-  if (args.getSize() != 2)
+  std::string dictName, word;
+  if (!(in >> dictName >> word))
   {
-    os << "INVALID COMMAND\n";
-    return;
+    throw std::runtime_error("invalid arguments for delete");
   }
-  auto it = args.cbegin();
-  std::string dict_name = *it;
-  ++it;
-  std::string word = *it;
-  if (dm.removeWord(dict_name, word))
+  if (!dictExists(dictName, dicts))
   {
-    os << "OK: Deleted '" << word << "'\n";
+    throw std::runtime_error("DICT NOT FOUND");
   }
-  else
+  auto & dict = dicts.at(dictName);
+  if (dict.erase(word) == 0)
   {
-    os << "WORD NOT FOUND\n";
+    throw std::runtime_error("WORD NOT FOUND");
   }
+  out << "OK: Deleted '" << word << "'\n";
 }
 
-void dump(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
+void freq_analysis::dumpDict(std::istream & in, const DictCollection & dicts, std::ostream & out)
 {
-  if (args.getSize() != 1)
+  std::string dictName;
+  if (!(in >> dictName))
   {
-    os << "INVALID COMMAND\n";
-    return;
+    throw std::runtime_error("invalid arguments for dump");
   }
-  auto it = args.cbegin();
-  std::string dict_name = *it;
-  const auto* dict = dm.getDict(dict_name);
-  if (!dict)
+  if (!dictExists(dictName, dicts))
   {
-    os << "DICT NOT FOUND\n";
-    return;
+    throw std::runtime_error("DICT NOT FOUND");
   }
-  if (dict->empty())
-  {
-    os << "EMPTY DICT\n";
-    return;
-  }
-  os << "dump: ";
+  const auto & dict = dicts.at(dictName);
+  out << "dump: ";
   bool first = true;
-  for (auto dit = dict->cbegin(); dit != dict->cend(); ++dit)
+  dict.traverse_lnr([&](const auto & p)
   {
     if (!first)
     {
-      os << " ";
+      out << " ";
     }
-    os << dit->first << ":" << dit->second;
+    out << p.first << ':' << p.second;
     first = false;
-  }
-  os << " \n";
+  });
+  out << " \n";
 }
 
-void top(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
+void freq_analysis::topWords(std::istream & in, const DictCollection & dicts, std::ostream & out)
 {
-  if (args.getSize() != 2)
-  {
-    os << "INVALID COMMAND\n";
-    return;
-  }
-  auto it = args.cbegin();
-  std::string dict_name = *it;
-  ++it;
-  std::string nstr = *it;
+  std::string dictName, nStr;
   size_t N;
+  if (!(in >> dictName >> nStr))
+  {
+    throw std::runtime_error("invalid arguments for top");
+  }
   try
   {
-    N = std::stoul(nstr);
+    N = std::stoul(nStr);
   }
   catch (...)
   {
-    os << "INVALID COMMAND\n";
-    return;
+    throw std::runtime_error("invalid N for top");
   }
-  const auto* dict = dm.getDict(dict_name);
-  if (!dict)
+  if (!dictExists(dictName, dicts))
   {
-    os << "DICT NOT FOUND\n";
-    return;
+    throw std::runtime_error("DICT NOT FOUND");
   }
-  if (dict->empty())
+  const auto & dict = dicts.at(dictName);
+  shramko::ForwardList<std::pair<size_t, std::string>> fl;
+  dict.traverse_lnr([&](const auto & p)
   {
-    os << "EMPTY DICT\n";
-    return;
-  }
-  std::vector<std::pair<std::string, int>> vec;
-  vec.reserve(dict->size());
-  for (auto dit = dict->cbegin(); dit != dict->cend(); ++dit)
-  {
-    vec.emplace_back(dit->first, dit->second);
-  }
-  std::sort(vec.begin(), vec.end(), [](const auto& a, const auto& b)
-  {
-    if (a.second != b.second)
-    {
-      return a.second > b.second;
-    }
-    return a.first < b.first;
+    fl.addToBack({p.second, p.first});
   });
-  os << "top " << N << ": ";
-  size_t cnt = 0;
-  for (const auto& p : vec)
+  std::vector<std::pair<size_t, std::string>> v(fl.cbegin(), fl.cend());
+  std::sort(v.begin(), v.end(), [](const auto & a, const auto & b)
   {
-    if (cnt >= N)
+    if (a.first != b.first)
     {
-      break;
+      return a.first > b.first;
     }
-    os << p.first << ":" << p.second << " ";
+    return a.second < b.second;
+  });
+  out << "top " << N << ": ";
+  size_t cnt = 0;
+  for (const auto & pr : v)
+  {
+    if (cnt >= N) break;
+    out << pr.second << ':' << pr.first << " ";
     ++cnt;
   }
-  os << "\n";
+  out << "\n";
 }
 
-void bot(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
+void freq_analysis::botWords(std::istream & in, const DictCollection & dicts, std::ostream & out)
 {
-  if (args.getSize() != 2)
-  {
-    os << "INVALID COMMAND\n";
-    return;
-  }
-  auto it = args.cbegin();
-  std::string dict_name = *it;
-  ++it;
-  std::string nstr = *it;
+  std::string dictName, nStr;
   size_t N;
+  if (!(in >> dictName >> nStr))
+  {
+    throw std::runtime_error("invalid arguments for bot");
+  }
   try
   {
-    N = std::stoul(nstr);
+    N = std::stoul(nStr);
   }
   catch (...)
   {
-    os << "INVALID COMMAND\n";
-    return;
+    throw std::runtime_error("invalid N for bot");
   }
-  const auto* dict = dm.getDict(dict_name);
-  if (!dict)
+  if (!dictExists(dictName, dicts))
   {
-    os << "DICT NOT FOUND\n";
-    return;
+    throw std::runtime_error("DICT NOT FOUND");
   }
-  if (dict->empty())
+  const auto & dict = dicts.at(dictName);
+  shramko::ForwardList<std::pair<size_t, std::string>> fl;
+  dict.traverse_lnr([&](const auto & p)
   {
-    os << "EMPTY DICT\n";
-    return;
-  }
-  std::vector<std::pair<std::string, int>> vec;
-  vec.reserve(dict->size());
-  for (auto dit = dict->cbegin(); dit != dict->cend(); ++dit)
-  {
-    vec.emplace_back(dit->first, dit->second);
-  }
-  std::sort(vec.begin(), vec.end(), [](const auto& a, const auto& b)
-  {
-    if (a.second != b.second)
-    {
-      return a.second < b.second;
-    }
-    return a.first < b.first;
+    fl.addToBack({p.second, p.first});
   });
-  os << "bot " << N << ": ";
-  size_t cnt = 0;
-  for (const auto& p : vec)
+  std::vector<std::pair<size_t, std::string>> v(fl.cbegin(), fl.cend());
+  std::sort(v.begin(), v.end(), [](const auto & a, const auto & b)
   {
-    if (cnt >= N)
+    if (a.first != b.first)
     {
-      break;
+      return a.first < b.first;
     }
-    os << p.first << ":" << p.second << " ";
+    return a.second < b.second;
+  });
+  out << "bot " << N << ": ";
+  size_t cnt = 0;
+  for (const auto & pr : v)
+  {
+    if (cnt >= N) break;
+    out << pr.second << ':' << pr.first << " ";
     ++cnt;
   }
-  os << "\n";
+  out << "\n";
 }
 
-void minfreq(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
+void freq_analysis::minFreqWords(std::istream & in, const DictCollection & dicts, std::ostream & out)
 {
-  if (args.getSize() != 2)
+  std::string dictName, minStr;
+  size_t minF;
+  if (!(in >> dictName >> minStr))
   {
-    os << "INVALID COMMAND\n";
-    return;
+    throw std::runtime_error("invalid arguments for minfreq");
   }
-  auto it = args.cbegin();
-  std::string dict_name = *it;
-  ++it;
-  std::string minstr = *it;
-  int minf;
   try
   {
-    minf = std::stoi(minstr);
+    minF = std::stoul(minStr);
   }
   catch (...)
   {
-    os << "INVALID COMMAND\n";
-    return;
+    throw std::runtime_error("invalid min for minfreq");
   }
-  const auto* dict = dm.getDict(dict_name);
-  if (!dict)
+  if (!dictExists(dictName, dicts))
   {
-    os << "DICT NOT FOUND\n";
-    return;
+    throw std::runtime_error("DICT NOT FOUND");
   }
-  os << "minfreq " << minf << ": ";
-  bool first = true;
-  for (auto dit = dict->cbegin(); dit != dict->cend(); ++dit)
+  const auto & dict = dicts.at(dictName);
+  shramko::ForwardList<std::pair<std::string, size_t>> fl;
+  dict.traverse_lnr([&](const auto & p)
   {
-    if (dit->second >= minf)
+    if (p.second >= minF)
     {
-      if (!first)
-      {
-        os << " ";
-      }
-      os << dit->first << ":" << dit->second;
-      first = false;
+      fl.addToBack({p.first, p.second});
     }
+  });
+  std::vector<std::pair<std::string, size_t>> v(fl.cbegin(), fl.cend());
+  std::sort(v.begin(), v.end());
+  out << "minfreq " << minF << ": ";
+  for (const auto & pr : v)
+  {
+    out << pr.first << ':' << pr.second << " ";
   }
-  os << " \n";
+  out << "\n";
 }
 
-void maxfreq(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
+void freq_analysis::maxFreqWords(std::istream & in, const DictCollection & dicts, std::ostream & out)
 {
-  if (args.getSize() != 2)
+  std::string dictName, maxStr;
+  size_t maxF;
+  if (!(in >> dictName >> maxStr))
   {
-    os << "INVALID COMMAND\n";
-    return;
+    throw std::runtime_error("invalid arguments for maxfreq");
   }
-  auto it = args.cbegin();
-  std::string dict_name = *it;
-  ++it;
-  std::string maxstr = *it;
-  int maxf;
   try
   {
-    maxf = std::stoi(maxstr);
+    maxF = std::stoul(maxStr);
   }
   catch (...)
   {
-    os << "INVALID COMMAND\n";
-    return;
+    throw std::runtime_error("invalid max for maxfreq");
   }
-  const auto* dict = dm.getDict(dict_name);
-  if (!dict)
+  if (!dictExists(dictName, dicts))
   {
-    os << "DICT NOT FOUND\n";
-    return;
+    throw std::runtime_error("DICT NOT FOUND");
   }
-  os << "maxfreq " << maxf << ": ";
-  bool first = true;
-  for (auto dit = dict->cbegin(); dit != dict->cend(); ++dit)
+  const auto & dict = dicts.at(dictName);
+  shramko::ForwardList<std::pair<std::string, size_t>> fl;
+  dict.traverse_lnr([&](const auto & p)
   {
-    if (dit->second > maxf)
+    if (p.second > maxF)
     {
-      if (!first)
-      {
-        os << " ";
-      }
-      os << dit->first << ":" << dit->second;
-      first = false;
+      fl.addToBack({p.first, p.second});
     }
+  });
+  std::vector<std::pair<std::string, size_t>> v(fl.cbegin(), fl.cend());
+  std::sort(v.begin(), v.end());
+  out << "maxfreq " << maxF << ": ";
+  for (const auto & pr : v)
+  {
+    out << pr.first << ':' << pr.second << " ";
   }
-  os << " \n";
+  out << "\n";
 }
 
-void median(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
+void freq_analysis::medianFreq(std::istream & in, const DictCollection & dicts, std::ostream & out)
 {
-  if (args.getSize() != 1)
+  std::string dictName;
+  if (!(in >> dictName))
   {
-    os << "INVALID COMMAND\n";
-    return;
+    throw std::runtime_error("invalid arguments for median");
   }
-  auto it = args.cbegin();
-  std::string dict_name = *it;
-  const auto* dict = dm.getDict(dict_name);
-  if (!dict)
+  if (!dictExists(dictName, dicts))
   {
-    os << "DICT NOT FOUND\n";
-    return;
+    throw std::runtime_error("DICT NOT FOUND");
   }
-  if (dict->empty())
+  const auto & dict = dicts.at(dictName);
+  if (dict.empty())
   {
-    os << "EMPTY DICT\n";
-    return;
+    throw std::runtime_error("EMPTY DICT");
   }
-  std::vector<int> freqs;
-  freqs.reserve(dict->size());
-  for (auto dit = dict->cbegin(); dit != dict->cend(); ++dit)
+  shramko::ForwardList<size_t> fl;
+  dict.traverse_lnr([&](const auto & p)
   {
-    freqs.push_back(dit->second);
-  }
+    fl.addToBack(p.second);
+  });
+  std::vector<size_t> freqs(fl.cbegin(), fl.cend());
   std::sort(freqs.begin(), freqs.end());
-  size_t sz = freqs.size();
-  double med = 0.0;
-  if (sz % 2 == 1)
+  size_t s = freqs.size();
+  double med;
+  if (s % 2 == 1)
   {
-    med = freqs[sz / 2];
+    med = freqs[s / 2];
   }
   else
   {
-    med = (static_cast<double>(freqs[sz / 2 - 1]) + freqs[sz / 2]) / 2.0;
+    med = (static_cast<double>(freqs[s / 2 - 1]) + freqs[s / 2]) / 2.0;
   }
-  os << "median: " << med << "\n";
+  out << "median: " << med << "\n";
 }
 
-shramko::HashTable< std::string, CommandFunction > createCommandMap()
+void freq_analysis::printHelp(std::ostream & out)
 {
-  shramko::HashTable< std::string, CommandFunction > commandMap;
-  commandMap.insert("create", create);
-  commandMap.insert("add", add);
-  commandMap.insert("increment", increment);
-  commandMap.insert("search", search);
-  commandMap.insert("delete", delete_);
-  commandMap.insert("dump", dump);
-  commandMap.insert("top", top);
-  commandMap.insert("bot", bot);
-  commandMap.insert("minfreq", minfreq);
-  commandMap.insert("maxfreq", maxfreq);
-  commandMap.insert("median", median);
-  return commandMap;
+  out << std::left;
+  out << "Available commands:\n\n";
+  constexpr size_t cmdWidth = 30;
+  constexpr size_t numWidth = 3;
+  out << std::setw(numWidth) << "1." << std::setw(cmdWidth) << "create <name>" << "create a new dictionary\n";
+  out << std::setw(numWidth) << "2." << std::setw(cmdWidth) << "add <dict> <word> [freq:N]" << "add or update word frequency\n";
+  out << std::setw(numWidth) << "3." << std::setw(cmdWidth) << "increment <dict> <word> [by:N]" << "increment word frequency\n";
+  out << std::setw(numWidth) << "4." << std::setw(cmdWidth) << "search <dict> <word>" << "search word frequency\n";
+  out << std::setw(numWidth) << "5." << std::setw(cmdWidth) << "delete <dict> <word>" << "delete word\n";
+  out << std::setw(numWidth) << "6." << std::setw(cmdWidth) << "dump <dict>" << "dump dictionary contents\n";
+  out << std::setw(numWidth) << "7." << std::setw(cmdWidth) << "top <dict> <N>" << "top N words by frequency\n";
+  out << std::setw(numWidth) << "8." << std::setw(cmdWidth) << "bot <dict> <N>" << "bottom N words by frequency\n";
+  out << std::setw(numWidth) << "9." << std::setw(cmdWidth) << "minfreq <dict> <min>" << "words with freq >= min\n";
+  out << std::setw(numWidth) << "10." << std::setw(cmdWidth) << "maxfreq <dict> <max>" << "words with freq > max\n";
+  out << std::setw(numWidth) << "11." << std::setw(cmdWidth) << "median <dict>" << "median frequency\n";
+}
+
+void freq_analysis::printError(const std::string & message, std::ostream & out)
+{
+  out << message << "\n";
 }
