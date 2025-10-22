@@ -188,12 +188,11 @@ void freq_analysis::topWords(std::istream & in, const DictCollection & dicts, st
     throw std::runtime_error("DICT NOT FOUND");
   }
   const auto & dict = dicts.at(dictName);
-  shramko::ForwardList<std::pair<size_t, std::string>> fl;
+  std::vector<std::pair<size_t, std::string>> v;
   dict.traverse_lnr([&](const auto & p)
   {
-    fl.addToBack({p.second, p.first});
+    v.emplace_back(p.second, p.first);
   });
-  std::vector<std::pair<size_t, std::string>> v(fl.cbegin(), fl.cend());
   std::sort(v.begin(), v.end(), [](const auto & a, const auto & b)
   {
     if (a.first != b.first)
@@ -234,12 +233,11 @@ void freq_analysis::botWords(std::istream & in, const DictCollection & dicts, st
     throw std::runtime_error("DICT NOT FOUND");
   }
   const auto & dict = dicts.at(dictName);
-  shramko::ForwardList<std::pair<size_t, std::string>> fl;
+  std::vector<std::pair<size_t, std::string>> v;
   dict.traverse_lnr([&](const auto & p)
   {
-    fl.addToBack({p.second, p.first});
+    v.emplace_back(p.second, p.first);
   });
-  std::vector<std::pair<size_t, std::string>> v(fl.cbegin(), fl.cend());
   std::sort(v.begin(), v.end(), [](const auto & a, const auto & b)
   {
     if (a.first != b.first)
@@ -280,15 +278,14 @@ void freq_analysis::minFreqWords(std::istream & in, const DictCollection & dicts
     throw std::runtime_error("DICT NOT FOUND");
   }
   const auto & dict = dicts.at(dictName);
-  shramko::ForwardList<std::pair<std::string, size_t>> fl;
+  std::vector<std::pair<std::string, size_t>> v;
   dict.traverse_lnr([&](const auto & p)
   {
     if (p.second >= minF)
     {
-      fl.addToBack({p.first, p.second});
+      v.emplace_back(p.first, p.second);
     }
   });
-  std::vector<std::pair<std::string, size_t>> v(fl.cbegin(), fl.cend());
   std::sort(v.begin(), v.end());
   out << "minfreq " << minF << ": ";
   for (const auto & pr : v)
@@ -319,15 +316,14 @@ void freq_analysis::maxFreqWords(std::istream & in, const DictCollection & dicts
     throw std::runtime_error("DICT NOT FOUND");
   }
   const auto & dict = dicts.at(dictName);
-  shramko::ForwardList<std::pair<std::string, size_t>> fl;
+  std::vector<std::pair<std::string, size_t>> v;
   dict.traverse_lnr([&](const auto & p)
   {
     if (p.second > maxF)
     {
-      fl.addToBack({p.first, p.second});
+      v.emplace_back(p.first, p.second);
     }
   });
-  std::vector<std::pair<std::string, size_t>> v(fl.cbegin(), fl.cend());
   std::sort(v.begin(), v.end());
   out << "maxfreq " << maxF << ": ";
   for (const auto & pr : v)
@@ -353,12 +349,11 @@ void freq_analysis::medianFreq(std::istream & in, const DictCollection & dicts, 
   {
     throw std::runtime_error("EMPTY DICT");
   }
-  shramko::ForwardList<size_t> fl;
+  std::vector<size_t> freqs;
   dict.traverse_lnr([&](const auto & p)
   {
-    fl.addToBack(p.second);
+    freqs.push_back(p.second);
   });
-  std::vector<size_t> freqs(fl.cbegin(), fl.cend());
   std::sort(freqs.begin(), freqs.end());
   size_t s = freqs.size();
   double med;
