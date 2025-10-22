@@ -1,204 +1,146 @@
 #include "command_processing.hpp"
+#include <set>
+#include <algorithm>
 
-namespace
-{
-  void print_bounds(std::ostream& out, const std::vector< std::pair< std::string, std::vector< int > > >& bounds)
-  {
-    if (bounds.empty())
-    {
-      out << '\n';
+namespace shramko {
+
+void get_vertexes(std::istream& in, std::ostream& out, const map& graphs) {
+    std::string graphName;
+    in >> graphName;
+    auto it = graphs.find(graphName);
+    if (it == graphs.end()) {
+        out << "No such graph" << std::endl;
+        return;
     }
-
-    for (auto it = bounds.cbegin(); it != bounds.cend(); ++it)
-    {
-      out << it->first;
-
-      for (auto itWeight = it->second.cbegin(); itWeight != it->second.cend(); ++itWeight)
-      {
-        out << ' ' << *itWeight;
-      }
-
-      out << '\n';
+    const auto& graph = it->second;
+    std::vector<std::string> vertexes = graph.get_vertexes();
+    for (const auto& v : vertexes) {
+        out << v << std::endl;
     }
-  }
 }
 
-void shramko::get_graphs(std::ostream& out, const map& graphs)
-{
-  if (graphs.empty())
-  {
-    out << '\n';
-  }
-
-  for (auto it = graphs.cbegin(); it != graphs.cend(); ++it)
-  {
-    out << it->first << '\n';
-  }
+void get_outbound(std::istream& in, std::ostream& out, const map& graphs) {
+    std::string graphName, vertexName;
+    in >> graphName >> vertexName;
+    auto it = graphs.find(graphName);
+    if (it == graphs.end()) {
+        out << "No such graph" << std::endl;
+        return;
+    }
+    const auto& graph = it->second;
+    if (!graph.has_vertex(vertexName)) {
+        out << "No such vertex" << std::endl;
+        return;
+    }
+    auto outbounds = graph.get_outbound(vertexName);
+    for (const auto& ob : outbounds) {
+        out << ob.first << ": ";
+        for (int w : ob.second) {
+            out << w << " ";
+        }
+        out << std::endl;
+    }
 }
 
-void shramko::get_vertexes(std::istream& in, std::ostream& out, const map& graphs)
-{
-  std::string graphName;
-
-  in >> graphName;
-
-  const Graph& graph = graphs.at(graphName);
-  std::vector< std::string > vertexes = graph.get_vertexes();
-
-  if (vertexes.empty())
-  {
-    out << '\n';
-  }
-
-  for (auto it = vertexes.begin(); it != vertexes.end(); ++it)
-  {
-    out << *it << '\n';
-  }
+void get_inbound(std::istream& in, std::ostream& out, const map& graphs) {
+    std::string graphName, vertexName;
+    in >> graphName >> vertexName;
+    auto it = graphs.find(graphName);
+    if (it == graphs.end()) {
+        out << "No such graph" << std::endl;
+        return;
+    }
+    const auto& graph = it->second;
+    if (!graph.has_vertex(vertexName)) {
+        out << "No such vertex" << std::endl;
+        return;
+    }
+    auto inbounds = graph.get_inbound(vertexName);
+    for (const auto& ib : inbounds) {
+        out << ib.first << ": ";
+        for (int w : ib.second) {
+            out << w << " ";
+        }
+        out << std::endl;
+    }
 }
 
-void shramko::get_outbound(std::istream& in, std::ostream& out, const map& graphs)
-{
-  std::string graphName;
-  std::string vertexName;
-
-  in >> graphName >> vertexName;
-
-  const Graph& graph = graphs.at(graphName);
-
-  if (!graph.has_vertex(vertexName))
-  {
-    throw std::logic_error("<THERE IS NO SUCH VERTEX>");
-  }
-
-  auto outbounds = graph.get_outbound(vertexName);
-
-  print_bounds(out, outbounds);
+void create_edge(std::istream& in, map& graphs) {
+    std::string graphName, v1, v2;
+    int weight;
+    in >> graphName >> v1 >> v2 >> weight;
+    auto it = graphs.find(graphName);
+    if (it == graphs.end())
+    {
+        out << "No such graph" << std::endl;
+        return;
+    }
+    auto& graph = it->second;
+    graph.addEdge(v1, v2, weight);
 }
 
-void shramko::get_inbound(std::istream& in, std::ostream& out, const map& graphs)
-{
-  std::string graphName;
-  std::string vertexName;
-
-  in >> graphName >> vertexName;
-
-  const Graph& graph = graphs.at(graphName);
-
-  if (!graph.has_vertex(vertexName))
-  {
-    throw std::logic_error("<THERE IS NO SUCH VERTEX>");
-  }
-
-  auto inbounds = graph.get_inbound(vertexName);
-
-  print_bounds(out, inbounds);
+void delete_edge(std::istream& in, map& graphs) {
+    std::string graphName, v1, v2;
+    int weight;
+    in >> graphName >> v1 >> v2 >> weight;
+    auto it = graphs.find(graphName);
+    if (it == graphs.end())
+    {
+        out << "No such graph" << std::endl;
+        return;
+    }
+    auto& graph = it->second;
+    graph.delete_edge(v1, v2, weight);
 }
 
-void shramko::create_edge(std::istream& in, map& graphs)
-{
-  std::string graphName;
-  std::string v1;
-  std::string v2;
-  int weight = 0;
-
-  in >> graphName >> v1 >> v2 >> weight;
-
-  Graph& graph = graphs.at(graphName);
-
-  graph.add_edge(v1, v2, weight);
+void create_graph(std::istream& in, map& graphs) {
+    std::string graphName;
+    int numVertices;
+    in >> graphName >> numVertices;
+    Graph newGraph;
+    for (int i = 0; i < numVertices; ++i) {
+        std::string vertex;
+        in >> vertex;
+        newGraph.add_vertex(vertex);
+    }
+    graphs[graphName] = newGraph;
 }
 
-void shramko::delete_edge(std::istream& in, map& graphs)
-{
-  std::string graphName;
-  std::string v1;
-  std::string v2;
-  int weight = 0;
-
-  in >> graphName >> v1 >> v2 >> weight;
-
-  Graph& graph = graphs.at(graphName);
-
-  graph.delete_edge(v1, v2, weight);
+void merge_graph(std::istream& in, map& graphs) {
+    std::string graphName1, graphName2, mergedName;
+    in >> mergedName >> graphName1 >> graphName2;
+    auto it1 = graphs.find(graphName1);
+    auto it2 = graphs.find(graphName2);
+    if (it1 == graphs.end() || it2 == graphs.end()) {
+        std::cout << "No such graph" << std::endl;
+        return;
+    }
+    Graph mergedGraph = it1->second;
+    mergedGraph.merge(it2->second);
+    graphs[mergedName] = mergedGraph;
 }
 
-void shramko::create_graph(std::istream& in, map& graphs)
-{
-  std::string graphName;
-
-  in >> graphName;
-
-  if (graphs.find(graphName) != graphs.end())
-  {
-    throw std::logic_error("<SUCH A GRAPH ALREADY EXISTS>");
-  }
-
-  Graph newGraph;
-  size_t vertexesCount = 0;
-
-  in >> vertexesCount;
-
-  std::string vertex;
-
-  for (size_t i = 0; i < vertexesCount; ++i)
-  {
-    in >> vertex;
-    newGraph.add_vertex(vertex);
-  }
-
-  graphs[graphName] = newGraph;
+void extract_graph(std::istream& in, map& graphs) {
+    std::string graphName, extractedName;
+    int numVertices;
+    in >> extractedName >> graphName >> numVertices;
+    auto it = graphs.find(graphName);
+    if (it == graphs.end()) {
+        std::cout << "No such graph" << std::endl;
+        return;
+    }
+    const auto& graph = it->second;
+    std::set<std::string> vertexes;
+    for (int i = 0; i < numVertices; ++i) {
+        std::string vertex;
+        in >> vertex;
+        if (graph.has_vertex(vertex)) {
+            vertexes.insert(vertex);
+        }
+    }
+    Graph extractedGraph;
+    extractedGraph.extract(graph, vertexes);
+    graphs[extractedName] = extractedGraph;
 }
 
-void shramko::merge_graph(std::istream& in, map& graphs)
-{
-  std::string newGraphName;
-  std::string graphName1;
-  std::string graphName2;
-
-  in >> newGraphName >> graphName1 >> graphName2;
-
-  if (graphs.find(newGraphName) != graphs.end())
-  {
-    throw std::logic_error("< SUCH A GRAPH ALREADY EXISTS >");
-  }
-
-  const Graph& graph1 = graphs.at(graphName1);
-  const Graph& graph2 = graphs.at(graphName2);
-  Graph mergedGraph = graph1;
-
-  mergedGraph.merge(graph2);
-  graphs[newGraphName] = mergedGraph;
-}
-
-void shramko::extract_graph(std::istream& in, map& graphs)
-{
-  std::string newGraphName;
-  std::string graphName;
-
-  in >> newGraphName >> graphName;
-
-  if (graphs.find(newGraphName) != graphs.end())
-  {
-    throw std::logic_error("< SUCH A GRAPH ALREADY EXISTS >");
-  }
-
-  const Graph& graph = graphs.at(graphName);
-  size_t countVertexes = 0;
-
-  in >> countVertexes;
-
-  std::set< std::string > vertexes;
-  std::string vertex;
-
-  for (size_t i = 0; i < countVertexes; ++i)
-  {
-    in >> vertex;
-    graph.has_vertex(vertex);
-    vertexes.insert(vertex);
-  }
-
-  Graph extractedGraph;
-
-  extractedGraph.extract(graph, vertexes);
-  graphs[newGraphName] = extractedGraph;
 }
