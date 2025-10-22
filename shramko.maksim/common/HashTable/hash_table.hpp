@@ -90,7 +90,7 @@ namespace shramko
     max_load_factor_(rhs.max_load_factor_)
   {
     slots_.resize(capacity_);
-    insert(rhs.begin(), rhs.end());
+    insert(rhs.cbegin(), rhs.cend());
   }
 
   template< class Key, class T, class Hash, class Eq >
@@ -131,7 +131,7 @@ namespace shramko
       capacity_ = rhs.capacity_;
       max_load_factor_ = rhs.max_load_factor_;
       slots_.resize(capacity_);
-      insert(rhs.begin(), rhs.end());
+      insert(rhs.cbegin(), rhs.cend());
     }
     return *this;
   }

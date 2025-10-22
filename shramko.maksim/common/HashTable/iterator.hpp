@@ -18,10 +18,7 @@ namespace shramko
 
     HashIterator() : slots_(nullptr), capacity_(0), current_(0) {}
     HashIterator(HashNode< Key, T >* slots, size_t capacity, size_t current):
-      slots_(slots),
-      capacity_(capacity),
-      current_(current)
-    {}
+      slots_(slots), capacity_(capacity), current_(current) {}
 
     reference operator*() const { return slots_[current_].data; }
     pointer operator->() const { return &slots_[current_].data; }
@@ -46,7 +43,7 @@ namespace shramko
     bool operator==(const HashIterator& other) const { return current_ == other.current_; }
     bool operator!=(const HashIterator& other) const { return !(*this == other); }
 
-  private:
+  public:
     HashNode< Key, T >* slots_;
     size_t capacity_;
     size_t current_;
@@ -64,10 +61,7 @@ namespace shramko
 
     HashConstIterator() : slots_(nullptr), capacity_(0), current_(0) {}
     HashConstIterator(const HashNode< Key, T >* slots, size_t capacity, size_t current):
-      slots_(slots),
-      capacity_(capacity),
-      current_(current)
-    {}
+      slots_(slots), capacity_(capacity), current_(current) {}
 
     reference operator*() const { return slots_[current_].data; }
     pointer operator->() const { return &slots_[current_].data; }
