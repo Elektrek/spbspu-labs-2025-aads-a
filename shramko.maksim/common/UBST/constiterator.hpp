@@ -1,5 +1,5 @@
-#ifndef CONST_ITERATOR_HPP
-#define CONST_ITERATOR_HPP
+#ifndef CONSTITERATOR_HPP
+#define CONSTITERATOR_HPP
 
 #include <iterator>
 #include "node.hpp"
