@@ -187,6 +187,10 @@ public:
         throw std::overflow_error("Hash table overflow");
     }
 
+    std::pair<iterator, bool> insert(const Key& key, T&& obj) {
+        return emplace(key, std::forward<T>(obj));
+    }
+
     template <typename... Args>
     std::pair<iterator, bool> emplace(Args&&... args) {
         value_type value(std::forward<Args>(args)...);
@@ -194,8 +198,38 @@ public:
     }
 
     template <typename... Args>
+    std::pair<iterator, bool> emplace(const Key& key, Args&&... args) {
+        if (loadFactor() > max_load_factor_) {
+            rehash(capacity_ * 2);
+        }
+        T obj(std::forward<Args>(args)...);
+        size_type index = hash(key);
+        size_type first_deleted = capacity_;
+        for (size_type i = 0; i < capacity_; ++i) {
+            size_type pos = (index + i) % capacity_;
+            if (!slots_[pos].occupied) {
+                if (first_deleted != capacity_) pos = first_deleted;
+                slots_[pos].key = key;
+                slots_[pos].data = std::move(obj);
+                slots_[pos].occupied = true;
+                slots_[pos].deleted = false;
+                ++size_;
+                return {iterator(slots_.data() + pos, slots_.data() + capacity_), true};
+            }
+            if (slots_[pos].deleted && first_deleted == capacity_) {
+                first_deleted = pos;
+            }
+            if (slots_[pos].occupied && equal(slots_[pos].key, key)) {
+                slots_[pos].data = std::move(obj);
+                return {iterator(slots_.data() + pos, slots_.data() + capacity_), false};
+            }
+        }
+        throw std::overflow_error("Hash table overflow");
+    }
+
+    template <typename... Args>
     iterator insert_or_assign(const Key& key, Args&&... args) {
-        auto [it, inserted] = insert({key, T(std::forward<Args>(args)...)});
+        auto [it, inserted] = emplace(key, std::forward<Args>(args)...);
         if (!inserted) {
             it->second = T(std::forward<Args>(args)...);
         }
