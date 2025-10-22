@@ -1,12 +1,13 @@
 #include "dictionary_manager.hpp"
 #include <fstream>
-#include <cctype>
 #include <algorithm>
+#include <cctype>
+#include <stdexcept>
 
 bool DictionaryManager::createDict(const std::string& name)
 {
-  auto inserted = dicts_.insert(name, shramko::UBstTree< std::string, int >());
-  return inserted.second;
+  auto result = dicts_.insert(name, shramko::UBstTree<std::string, int>{});
+  return result.second;
 }
 
 bool DictionaryManager::addWord(const std::string& dict_name, const std::string& word, int freq)
@@ -27,7 +28,12 @@ bool DictionaryManager::removeWord(const std::string& dict_name, const std::stri
   {
     return false;
   }
-  return dict->erase(word) > 0;
+  auto it = dict->find(word);
+  if (it == dict->cend())
+  {
+    return false;
+  }
+  return dict->erase(word);
 }
 
 bool DictionaryManager::getFreq(const std::string& dict_name, const std::string& word, int& freq) const
@@ -46,24 +52,28 @@ bool DictionaryManager::getFreq(const std::string& dict_name, const std::string&
   return true;
 }
 
-const shramko::UBstTree< std::string, int >* DictionaryManager::getDict(const std::string& name) const
+const shramko::UBstTree<std::string, int>* DictionaryManager::getDict(const std::string& name) const
 {
-  auto it = dicts_.find(name);
-  if (it == dicts_.cend())
+  try
+  {
+    return &dicts_.at(name);
+  }
+  catch (const std::out_of_range&)
   {
     return nullptr;
   }
-  return &(it->second);
 }
 
-shramko::UBstTree< std::string, int >* DictionaryManager::getDictMutable(const std::string& name)
+shramko::UBstTree<std::string, int>* DictionaryManager::getDictMutable(const std::string& name)
 {
-  auto it = dicts_.find(name);
-  if (it == dicts_.cend())
+  try
+  {
+    return &dicts_.at(name);
+  }
+  catch (const std::out_of_range&)
   {
     return nullptr;
   }
-  return &(it->second);
 }
 
 bool DictionaryManager::loadFromFile(const std::string& dict_name, const std::string& filename)
@@ -83,19 +93,13 @@ bool DictionaryManager::loadFromFile(const std::string& dict_name, const std::st
   while (file >> word)
   {
     std::transform(word.begin(), word.end(), word.begin(), ::tolower);
-    word.erase(
-      std::remove_if(
-        word.begin(), word.end(),
-        [](unsigned char c)
-        {
-          return !std::isalpha(c);
-        }
-      ),
-      word.end()
-    );
+    word.erase(std::remove_if(word.begin(), word.end(), [](unsigned char c)
+    {
+      return !std::isalpha(c);
+    }), word.end());
     if (!word.empty())
     {
-      addWord(dict_name, word, 1);
+      (*dict)[word]++;
     }
   }
   return true;

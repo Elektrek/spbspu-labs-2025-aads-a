@@ -2,8 +2,15 @@
 #define DICTIONARY_MANAGER_HPP
 
 #include <string>
-#include <UBST/UBST.hpp>
 #include <HashTable/hash_table.hpp>
+#include <UBST/UBST.hpp>
+
+namespace shramko {
+namespace hash_table {
+template<class Key, class T, class Hash = std::hash<Key>, class Eq = std::equal_to<Key>>
+class HashTable;
+}
+}
 
 class DictionaryManager
 {
@@ -21,12 +28,12 @@ class DictionaryManager
   bool addWord(const std::string& dict_name, const std::string& word, int freq = 1);
   bool removeWord(const std::string& dict_name, const std::string& word);
   bool getFreq(const std::string& dict_name, const std::string& word, int& freq) const;
-  const shramko::UBstTree< std::string, int >* getDict(const std::string& name) const;
-  shramko::UBstTree< std::string, int >* getDictMutable(const std::string& name);
+  const shramko::UBstTree<std::string, int>* getDict(const std::string& name) const;
+  shramko::UBstTree<std::string, int>* getDictMutable(const std::string& name);
   bool loadFromFile(const std::string& dict_name, const std::string& filename);
 
  private:
-  shramko::HashTable< std::string, shramko::UBstTree< std::string, int > > dicts_;
+  shramko::hash_table::HashTable<std::string, shramko::UBstTree<std::string, int>> dicts_;
 };
 
 #endif

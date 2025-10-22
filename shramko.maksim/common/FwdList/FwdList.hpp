@@ -8,7 +8,7 @@
 
 #include "fwd_list_node.hpp"
 #include "fwd_const_iterator.hpp"
-#include "fwd_iterator.hpp"
+#include "iterator.hpp"
 
 namespace shramko
 {
@@ -16,11 +16,11 @@ namespace shramko
   class ForwardList
   {
   public:
-    friend class FwdConstIterator< T >;
-    friend class FwdIterator< T >;
+    friend class ConstIterator< T >;
+    friend class Iterator< T >;
 
-    using const_iterator = FwdConstIterator< T >;
-    using iterator = FwdIterator< T >;
+    using const_iterator = ConstIterator< T >;
+    using iterator = Iterator< T >;
 
     ForwardList();
     ~ForwardList() noexcept;

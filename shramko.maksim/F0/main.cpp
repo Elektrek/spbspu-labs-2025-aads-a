@@ -1,15 +1,17 @@
 #include <iostream>
 #include <string>
+#include <vector>
 #include <fstream>
+#include <algorithm>
 #include <cctype>
+#include <stdexcept>
 #include "dictionary_manager.hpp"
 #include "commands.hpp"
 #include <FwdList/FwdList.hpp>
-#include <HashTable/hash_table.hpp>
 
 shramko::ForwardList< std::string > splitString(const std::string& str)
 {
-  shramko::ForwardList< std::string > tokens;
+  std::vector< std::string > temp_tokens;
   std::string currentToken;
   size_t start = 0;
   size_t end = str.length();
@@ -25,7 +27,7 @@ shramko::ForwardList< std::string > splitString(const std::string& str)
     {
       if (!currentToken.empty())
       {
-        tokens.addToBack(currentToken);
+        temp_tokens.push_back(currentToken);
         currentToken.clear();
       }
     }
@@ -37,7 +39,13 @@ shramko::ForwardList< std::string > splitString(const std::string& str)
 
   if (!currentToken.empty())
   {
-    tokens.addToBack(currentToken);
+    temp_tokens.push_back(currentToken);
+  }
+
+  shramko::ForwardList< std::string > tokens;
+  for (const auto& tok : temp_tokens)
+  {
+    tokens.addToBack(tok);
   }
   return tokens;
 }
@@ -45,7 +53,7 @@ shramko::ForwardList< std::string > splitString(const std::string& str)
 int main(int argc, char* argv[])
 {
   DictionaryManager dm;
-  shramko::HashTable< std::string, CommandFunction > commandMap = createCommandMap();
+  auto commandMap = createCommandMap();
 
   if (argc == 2)
   {
@@ -74,22 +82,16 @@ int main(int argc, char* argv[])
       continue;
     }
 
-    auto it = tokens.begin();
-    std::string commandName = *it;
-    ++it;
+    std::string commandName = tokens.getFront();
+    tokens.removeFront();
+    shramko::ForwardList< std::string > args = tokens;
 
-    shramko::ForwardList< std::string > args;
-    for (; it != tokens.end(); ++it)
-    {
-      args.addToBack(*it);
-    }
-
-    auto cmdIt = commandMap.find(commandName);
-    if (cmdIt != commandMap.end())
+    auto cmd_it = commandMap.find(commandName);
+    if (cmd_it != commandMap.cend())
     {
       try
       {
-        cmdIt->second(args, dm, std::cout);
+        cmd_it->second(args, dm, std::cout);
       }
       catch (const std::exception& e)
       {
