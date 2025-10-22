@@ -90,8 +90,7 @@ public:
 
     void merge(const Graph& other) {
         for (const auto& edge : other.edges) {
-            edges[edge.first].insert(edges[edge.first].end(), 
-                                   edge.second.cbegin(), edge.second.cend());
+            edges[edge.first].insert(edges[edge.first].end(), edge.second.cbegin(), edge.second.cend());
         }
         for (const auto& v : other.vertexes) {
             vertexes.insert(v);
