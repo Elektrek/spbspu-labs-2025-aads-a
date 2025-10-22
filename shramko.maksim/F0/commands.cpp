@@ -2,8 +2,8 @@
 #include <ostream>
 #include <stdexcept>
 #include "dictionary_manager.hpp"
-#include <common/FwdList/FwdList.hpp>
-#include <common/HashTable/hash_table.hpp>
+#include <FwdList/FwdList.hpp>
+#include <HashTable/hash_table.hpp>
 
 namespace shramko
 {

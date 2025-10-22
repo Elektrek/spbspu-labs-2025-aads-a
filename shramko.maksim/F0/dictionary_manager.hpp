@@ -2,8 +2,8 @@
 #define DICTIONARY_MANAGER_HPP
 
 #include <string>
-#include <common/UBST/UBST.hpp>
-#include <common/HashTable/hash_table.hpp>
+#include <UBST/UBST.hpp>
+#include <HashTable/hash_table.hpp>
 
 class DictionaryManager
 {

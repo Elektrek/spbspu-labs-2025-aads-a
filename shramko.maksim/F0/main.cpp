@@ -4,8 +4,8 @@
 #include <cctype>
 #include "dictionary_manager.hpp"
 #include "commands.hpp"
-#include <common/FwdList/FwdList.hpp>
-#include <common/HashTable/hash_table.hpp>
+#include <FwdList/FwdList.hpp>
+#include <HashTable/hash_table.hpp>
 
 shramko::ForwardList< std::string > splitString(const std::string& str)
 {

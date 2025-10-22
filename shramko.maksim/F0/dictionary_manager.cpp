@@ -1,9 +1,9 @@
 #include "dictionary_manager.hpp"
 #include <fstream>
 #include <cctype>
-#include <common/UBST/UBST.hpp>
-#include <common/HashTable/hash_table.hpp>
-#include <common/FwdList/FwdList.hpp>
+#include <UBST/UBST.hpp>
+#include <HashTable/hash_table.hpp>
+#include <FwdList/FwdList.hpp>
 #include <algorithm>
 
 bool DictionaryManager::createDict(const std::string& name)
