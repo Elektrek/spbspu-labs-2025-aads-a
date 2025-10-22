@@ -281,10 +281,14 @@ namespace shramko
     {
       newCapacity = 1;
     }
-    std::vector< HashNode< Key, T > > newSlots(newCapacity);
-    std::swap(slots_, newSlots);
+    if (newCapacity == capacity_)
+    {
+      return;
+    }
+    std::vector< HashNode< Key, T > > oldSlots = std::move(slots_);
+    size_t oldCapacity = capacity_;
+    slots_.resize(newCapacity);
     capacity_ = newCapacity;
-    size_t oldSize = size_;
     size_ = 0;
     for (size_t i = 0; i < oldCapacity; ++i)
     {

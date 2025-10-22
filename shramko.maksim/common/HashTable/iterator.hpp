@@ -2,6 +2,7 @@
 #define ITERATOR_HPP
 
 #include <iterator>
+#include "hash_node.hpp"
 
 namespace shramko
 {
@@ -15,6 +16,7 @@ namespace shramko
     using pointer = value_type*;
     using reference = value_type&;
 
+    HashIterator() : slots_(nullptr), capacity_(0), current_(0) {}
     HashIterator(HashNode< Key, T >* slots, size_t capacity, size_t current):
       slots_(slots),
       capacity_(capacity),
@@ -23,7 +25,24 @@ namespace shramko
 
     reference operator*() const { return slots_[current_].data; }
     pointer operator->() const { return &slots_[current_].data; }
-    HashIterator& operator++();
+
+    HashIterator& operator++()
+    {
+      ++current_;
+      while (current_ < capacity_ && (!slots_[current_].occupied || slots_[current_].deleted))
+      {
+        ++current_;
+      }
+      return *this;
+    }
+
+    HashIterator operator++(int)
+    {
+      HashIterator temp = *this;
+      ++(*this);
+      return temp;
+    }
+
     bool operator==(const HashIterator& other) const { return current_ == other.current_; }
     bool operator!=(const HashIterator& other) const { return !(*this == other); }
 
@@ -43,6 +62,7 @@ namespace shramko
     using pointer = const value_type*;
     using reference = const value_type&;
 
+    HashConstIterator() : slots_(nullptr), capacity_(0), current_(0) {}
     HashConstIterator(const HashNode< Key, T >* slots, size_t capacity, size_t current):
       slots_(slots),
       capacity_(capacity),
@@ -51,7 +71,24 @@ namespace shramko
 
     reference operator*() const { return slots_[current_].data; }
     pointer operator->() const { return &slots_[current_].data; }
-    HashConstIterator& operator++();
+
+    HashConstIterator& operator++()
+    {
+      ++current_;
+      while (current_ < capacity_ && (!slots_[current_].occupied || slots_[current_].deleted))
+      {
+        ++current_;
+      }
+      return *this;
+    }
+
+    HashConstIterator operator++(int)
+    {
+      HashConstIterator temp = *this;
+      ++(*this);
+      return temp;
+    }
+
     bool operator==(const HashConstIterator& other) const { return current_ == other.current_; }
     bool operator!=(const HashConstIterator& other) const { return !(*this == other); }
 
