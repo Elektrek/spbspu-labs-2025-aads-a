@@ -454,7 +454,7 @@ namespace shramko
     }
   }
 
-    template < typename Key, typename Value, typename Compare >
+  template < typename Key, typename Value, typename Compare >
   Node< Key, Value >* UBstTree< Key, Value, Compare >::findNodeNonConst(Node< Key, Value >* node, const Key& key)
   {
     if (!node)
