@@ -15,7 +15,11 @@ namespace shramko
     using pointer = value_type*;
     using reference = value_type&;
 
-    HashIterator(HashNode< Key, T >* slots, size_t capacity, size_t current) : slots_(slots), capacity_(capacity), current_(current) {}
+    HashIterator(HashNode< Key, T >* slots, size_t capacity, size_t current):
+      slots_(slots),
+      capacity_(capacity),
+      current_(current)
+    {}
 
     reference operator*() const { return slots_[current_].data; }
     pointer operator->() const { return &slots_[current_].data; }
@@ -39,7 +43,11 @@ namespace shramko
     using pointer = const value_type*;
     using reference = const value_type&;
 
-    HashConstIterator(const HashNode< Key, T >* slots, size_t capacity, size_t current) : slots_(slots), capacity_(capacity), current_(current) {}
+    HashConstIterator(const HashNode< Key, T >* slots, size_t capacity, size_t current):
+      slots_(slots),
+      capacity_(capacity),
+      current_(current)
+    {}
 
     reference operator*() const { return slots_[current_].data; }
     pointer operator->() const { return &slots_[current_].data; }

@@ -84,14 +84,21 @@ namespace shramko
   }
 
   template< class Key, class T, class Hash, class Eq >
-  HashTable< Key, T, Hash, Eq >::HashTable(const HashTable& rhs) : capacity_(rhs.capacity_), size_(0), max_load_factor_(rhs.max_load_factor_)
+  HashTable< Key, T, Hash, Eq >::HashTable(const HashTable& rhs):
+    capacity_(rhs.capacity_),
+    size_(0),
+    max_load_factor_(rhs.max_load_factor_)
   {
     slots_.resize(capacity_);
     insert(rhs.begin(), rhs.end());
   }
 
   template< class Key, class T, class Hash, class Eq >
-  HashTable< Key, T, Hash, Eq >::HashTable(HashTable&& rhs) noexcept : slots_(std::move(rhs.slots_)), capacity_(rhs.capacity_), size_(rhs.size_), max_load_factor_(rhs.max_load_factor_)
+  HashTable< Key, T, Hash, Eq >::HashTable(HashTable&& rhs) noexcept:
+    slots_(std::move(rhs.slots_)),
+    capacity_(rhs.capacity_),
+    size_(rhs.size_),
+    max_load_factor_(rhs.max_load_factor_)
   {
     rhs.capacity_ = 0;
     rhs.size_ = 0;
@@ -106,7 +113,10 @@ namespace shramko
   }
 
   template< class Key, class T, class Hash, class Eq >
-  HashTable< Key, T, Hash, Eq >::HashTable(std::initializer_list< std::pair< Key, T > > init) : capacity_(16), size_(0), max_load_factor_(0.75f)
+  HashTable< Key, T, Hash, Eq >::HashTable(std::initializer_list< std::pair< Key, T > > init):
+    capacity_(16),
+    size_(0),
+    max_load_factor_(0.75f)
   {
     slots_.resize(capacity_);
     insert(init.begin(), init.end());
