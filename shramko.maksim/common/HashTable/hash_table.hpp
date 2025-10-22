@@ -25,8 +25,7 @@ public:
 
 private:
     struct Slot {
-        Key key;
-        T data;
+        value_type value;
         bool occupied = false;
         bool deleted = false;
     };
@@ -70,8 +69,7 @@ public:
         : HashTable(rhs.capacity_) {
         for (size_type i = 0; i < capacity_; ++i) {
             if (rhs.slots_[i].occupied && !rhs.slots_[i].deleted) {
-                slots_[i].key = rhs.slots_[i].key;
-                slots_[i].data = rhs.slots_[i].data;
+                slots_[i].value = rhs.slots_[i].value;
                 slots_[i].occupied = true;
                 slots_[i].deleted = false;
                 ++size_;
@@ -113,7 +111,8 @@ public:
     }
 
     T& operator[](const Key& key) {
-        auto [it, inserted] = insert_or_assign(key, T{});
+        auto p = insert_or_assign(key, T{});
+        auto it = p.first;
         return it->second;
     }
 
@@ -143,18 +142,17 @@ public:
             size_type pos = (index + i) % capacity_;
             if (!slots_[pos].occupied) {
                 if (first_deleted != capacity_) pos = first_deleted;
-                slots_[pos].key = value.first;
-                slots_[pos].data = value.second;
+                slots_[pos].value = value;
                 slots_[pos].occupied = true;
                 slots_[pos].deleted = false;
                 ++size_;
-                return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), true};
+                return {iterator(&slots_[pos], slots_.data() + capacity_, *this), true};
             }
             if (slots_[pos].deleted && first_deleted == capacity_) {
                 first_deleted = pos;
             }
-            if (slots_[pos].occupied && equal(slots_[pos].key, value.first)) {
-                return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), false};
+            if (slots_[pos].occupied && equal(slots_[pos].value.first, value.first)) {
+                return {iterator(&slots_[pos], slots_.data() + capacity_, *this), false};
             }
         }
         throw std::overflow_error("Hash table overflow");
@@ -170,18 +168,17 @@ public:
             size_type pos = (index + i) % capacity_;
             if (!slots_[pos].occupied) {
                 if (first_deleted != capacity_) pos = first_deleted;
-                slots_[pos].key = std::move(value.first);
-                slots_[pos].data = std::move(value.second);
+                slots_[pos].value = std::move(value);
                 slots_[pos].occupied = true;
                 slots_[pos].deleted = false;
                 ++size_;
-                return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), true};
+                return {iterator(&slots_[pos], slots_.data() + capacity_, *this), true};
             }
             if (slots_[pos].deleted && first_deleted == capacity_) {
                 first_deleted = pos;
             }
-            if (slots_[pos].occupied && equal(slots_[pos].key, value.first)) {
-                return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), false};
+            if (slots_[pos].occupied && equal(slots_[pos].value.first, value.first)) {
+                return {iterator(&slots_[pos], slots_.data() + capacity_, *this), false};
             }
         }
         throw std::overflow_error("Hash table overflow");
@@ -209,19 +206,18 @@ public:
             size_type pos = (index + i) % capacity_;
             if (!slots_[pos].occupied) {
                 if (first_deleted != capacity_) pos = first_deleted;
-                slots_[pos].key = key;
-                slots_[pos].data = std::move(obj);
+                slots_[pos].value = value_type(key, std::move(obj));
                 slots_[pos].occupied = true;
                 slots_[pos].deleted = false;
                 ++size_;
-                return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), true};
+                return {iterator(&slots_[pos], slots_.data() + capacity_, *this), true};
             }
             if (slots_[pos].deleted && first_deleted == capacity_) {
                 first_deleted = pos;
             }
-            if (slots_[pos].occupied && equal(slots_[pos].key, key)) {
-                slots_[pos].data = std::move(obj);
-                return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), false};
+            if (slots_[pos].occupied && equal(slots_[pos].value.first, key)) {
+                slots_[pos].value.second = std::move(obj);
+                return {iterator(&slots_[pos], slots_.data() + capacity_, *this), false};
             }
         }
         throw std::overflow_error("Hash table overflow");
@@ -229,7 +225,9 @@ public:
 
     template <typename... Args>
     iterator insert_or_assign(const Key& key, Args&&... args) {
-        auto [it, inserted] = emplace(key, std::forward<Args>(args)...);
+        auto p = emplace(key, std::forward<Args>(args)...);
+        auto it = p.first;
+        bool inserted = p.second;
         if (!inserted) {
             it->second = T(std::forward<Args>(args)...);
         }
@@ -295,9 +293,9 @@ public:
     void rehash(size_type n) {
         if (n <= capacity_) return;
         HashTable tmp(n);
-        for (auto& slot : slots_) {
+        for (const auto& slot : slots_) {
             if (slot.occupied && !slot.deleted) {
-                tmp.insert({slot.key, slot.data});
+                tmp.insert(slot.value);
             }
         }
         swap(tmp);
@@ -313,8 +311,8 @@ public:
             size_type pos = (index + i) % capacity_;
             if (!slots_[pos].occupied) break;
             if (slots_[pos].deleted) continue;
-            if (equal(slots_[pos].key, key)) {
-                return iterator(slots_.data() + pos, slots_.data() + capacity_, *this);
+            if (equal(slots_[pos].value.first, key)) {
+                return iterator(&slots_[pos], slots_.data() + capacity_, *this);
             }
         }
         return end();
@@ -326,8 +324,8 @@ public:
             size_type pos = (index + i) % capacity_;
             if (!slots_[pos].occupied) break;
             if (slots_[pos].deleted) continue;
-            if (equal(slots_[pos].key, key)) {
-                return cIterator(slots_.data() + pos, slots_.data() + capacity_, *this);
+            if (equal(slots_[pos].value.first, key)) {
+                return cIterator(&slots_[pos], slots_.data() + capacity_, *this);
             }
         }
         return end();
@@ -384,8 +382,8 @@ public:
             other.table_ = nullptr;
         }
 
-        reference operator*() const { return deref(); }
-        pointer operator->() const { return &deref(); }
+        reference operator*() const { return current_->value; }
+        pointer operator->() const { return &current_->value; }
 
         iterator& operator++() {
             ++current_;
@@ -409,14 +407,6 @@ public:
             while (current_ != end_ && (!current_->occupied || current_->deleted)) {
                 ++current_;
             }
-        }
-
-        value_type& deref() const {
-            static value_type dummy;
-            if (current_ == end_ || !current_->occupied || current_->deleted) return dummy;
-            static thread_local value_type temp;
-            temp = value_type(current_->key, current_->data);
-            return temp;
         }
     };
 
@@ -447,8 +437,8 @@ public:
             other.table_ = nullptr;
         }
 
-        reference operator*() const { return deref(); }
-        pointer operator->() const { return &deref(); }
+        reference operator*() const { return current_->value; }
+        pointer operator->() const { return &current_->value; }
 
         cIterator& operator++() {
             ++current_;
@@ -470,14 +460,6 @@ public:
             while (current_ != end_ && (!current_->occupied || current_->deleted)) {
                 ++current_;
             }
-        }
-
-        value_type& deref() const {
-            static value_type dummy;
-            if (current_ == end_ || !current_->occupied || current_->deleted) return dummy;
-            static thread_local value_type temp;
-            temp = value_type(current_->key, current_->data);
-            return temp;
         }
     };
 };
