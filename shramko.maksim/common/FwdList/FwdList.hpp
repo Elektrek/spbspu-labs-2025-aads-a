@@ -1,5 +1,5 @@
-#ifndef FORWARDLIST_HPP
-#define FORWARDLIST_HPP
+#ifndef FWDLIST_HPP
+#define FWDLIST_HPP
 
 #include <cassert>
 #include <cstddef>
@@ -220,12 +220,15 @@ void shramko::ForwardList< T >::insertFrontNode(ListNode< T >* newNode) noexcept
 {
   newNode->nextPtr = headNode_;
   headNode_ = newNode;
-  if (isEmpty())
+  if (currentSize_ == 0)
   {
     tailNode_ = newNode;
   }
-  tailNode_->nextPtr = headNode_;
-  currentSize_++;
+  if (tailNode_)
+  {
+    tailNode_->nextPtr = headNode_;
+  }
+  ++currentSize_;
 }
 
 template< typename T >
@@ -247,13 +250,16 @@ void shramko::ForwardList< T >::removeFront()
   {
     ListNode< T >* oldHead = headNode_;
     headNode_ = headNode_->nextPtr;
-    tailNode_->nextPtr = headNode_;
-    delete oldHead;
-    currentSize_--;
-    if (isEmpty())
+    if (headNode_ == nullptr)
     {
-      headNode_ = tailNode_ = nullptr;
+      tailNode_ = nullptr;
     }
+    else
+    {
+      tailNode_->nextPtr = headNode_;
+    }
+    delete oldHead;
+    --currentSize_;
   }
 }
 
@@ -264,14 +270,13 @@ void shramko::ForwardList< T >::insertBackNode(ListNode< T >* newNode) noexcept
   {
     tailNode_->nextPtr = newNode;
     tailNode_ = newNode;
-    tailNode_->nextPtr = headNode_;
   }
   else
   {
     headNode_ = tailNode_ = newNode;
-    tailNode_->nextPtr = headNode_;
   }
-  currentSize_++;
+  newNode->nextPtr = headNode_;
+  ++currentSize_;
 }
 
 template< typename T >
