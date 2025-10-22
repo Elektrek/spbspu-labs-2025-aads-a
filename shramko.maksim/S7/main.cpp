@@ -44,17 +44,17 @@ int main(int argc, char** argv)
   std::map< std::string, Graph > graphs;
   std::map< std::string, std::function< void() > > cmds;
 
+  input_graphs(finput, graphs);
+
   cmds["graphs"] = std::bind(get_graphs, std::ref(std::cout), std::cref(graphs));
   cmds["vertexes"] = std::bind(get_vertexes, std::ref(std::cin), std::ref(std::cout), std::cref(graphs));
   cmds["outbound"] = std::bind(get_outbound, std::ref(std::cin), std::ref(std::cout), std::cref(graphs));
   cmds["inbound"] = std::bind(get_inbound, std::ref(std::cin), std::ref(std::cout), std::cref(graphs));
-  cmds["bind"] = std::bind(create_edge, std::ref(std::cin), std::ref(graphs));
-  cmds["cut"] = std::bind(delete_edge, std::ref(std::cin), std::ref(graphs));
-  cmds["create"] = std::bind(create_graph, std::ref(std::cin), std::ref(graphs));
-  cmds["merge"] = std::bind(merge_graph, std::ref(std::cin), std::ref(graphs));
-  cmds["extract"] = std::bind(extract_graph, std::ref(std::cin), std::ref(graphs));
-
-  input_graphs(finput, graphs);
+  cmds["bind"] = std::bind(create_edge, std::ref(std::cin), std::ref(graphs), std::ref(std::cout));
+  cmds["cut"] = std::bind(delete_edge, std::ref(std::cin), std::ref(graphs), std::ref(std::cout));
+  cmds["create"] = std::bind(create_graph, std::ref(std::cin), std::ref(graphs), std::ref(std::cout));
+  cmds["merge"] = std::bind(merge_graph, std::ref(std::cin), std::ref(graphs), std::ref(std::cout));
+  cmds["extract"] = std::bind(extract_graph, std::ref(std::cin), std::ref(graphs), std::ref(std::cout));
 
   std::string command;
 
@@ -64,11 +64,16 @@ int main(int argc, char** argv)
     {
       cmds.at(command)();
     }
-    catch (const std::exception&)
+    catch (const std::out_of_range&)
     {
-      std::cin.clear();
-      std::cin.ignore(std::numeric_limits< std::streamsize >::max(), '\n');
       std::cout << "<INVALID COMMAND>\n";
     }
+    catch (const std::exception&)
+    {
+      std::cout << "<INVALID COMMAND>\n";
+    }
+    std::cin.clear();
+    std::cin.ignore(std::numeric_limits< std::streamsize >::max(), '\n');
   }
+  return 0;
 }

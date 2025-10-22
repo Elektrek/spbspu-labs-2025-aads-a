@@ -1,6 +1,8 @@
 #include "commands.hpp"
 #include <sstream>
 #include <stdexcept>
+#include <vector>
+#include <algorithm>
 
 namespace
 {
@@ -63,9 +65,8 @@ void freq_analysis::addWord(std::istream & in, DictCollection & dicts, std::ostr
     throw std::runtime_error("invalid arguments for add");
   }
   auto & dict = dicts.at(dictName);
-  size_t newFreq = dict[word] + freq;
-  dict[word] = newFreq;
-  out << "OK: Added '" << word << "' with freq=" << newFreq << "\n";
+  dict[word] = freq;
+  out << "OK: Added '" << word << "' with freq=" << freq << "\n";
 }
 
 void freq_analysis::incrementWord(std::istream & in, DictCollection & dicts, std::ostream & out)
