@@ -272,12 +272,11 @@ namespace shramko
     return size_;
   }
 
-  template< class Key, class T, class Hash, class Eq >
-  float HashTable< Key, T, Hash, Eq >::loadFactor() const noexcept
+  template < typename Key, typename T, typename Hash, typename Eq >
+  float shramko::HashTable< Key, T, Hash, Eq >::loadFactor() const noexcept
   {
-    return static_cast<float>(size_) / capacity_;
+    return static_cast< float >(size_) / capacity_;
   }
-
   template< class Key, class T, class Hash, class Eq >
   void HashTable< Key, T, Hash, Eq >::rehash(size_t newCapacity)
   {
@@ -453,42 +452,45 @@ namespace shramko
     return 0;
   }
 
-  template< class Key, class T, class Hash, class Eq >
-  void HashTable< Key, T, Hash, Eq >::clear() noexcept
+  template < typename Key, typename T, typename Hash, typename Eq >
+  void shramko::HashTable<Key, T, Hash, Eq>::clear() noexcept
   {
     for (size_t i = 0; i < capacity_; ++i)
     {
-      slots_[i].occupied = false;
-      slots_[i].deleted = false;
+      if (slots_[i].occupied)
+      {
+        slots_[i].occupied = false;
+      }
     }
     size_ = 0;
   }
 
-  template< class Key, class T, class Hash, class Eq >
-  void HashTable< Key, T, Hash, Eq >::swap(HashTable& rhs) noexcept
+  template < typename Key, typename T, typename Hash, typename Eq >
+  void shramko::HashTable< Key, T, Hash, Eq >::swap(HashTable< Key, T, Hash, Eq >& rhs) noexcept
   {
-    std::swap(slots_, rhs.slots_);
-    std::swap(capacity_, rhs.capacity_);
     std::swap(size_, rhs.size_);
+    std::swap(capacity_, rhs.capacity_);
+    std::swap(slots_, rhs.slots_);
+    std::swap(max_load_factor_, rhs.max_load_factor_);
   }
 
-  template< class Key, class T, class Hash, class Eq >
-  float HashTable< Key, T, Hash, Eq >::max_load_factor() const noexcept
+  template < typename Key, typename T, typename Hash, typename Eq >
+  float shramko::HashTable< Key, T, Hash, Eq >::max_load_factor() const noexcept
   {
     return max_load_factor_;
   }
 
-  template< class Key, class T, class Hash, class Eq >
-  void HashTable< Key, T, Hash, Eq >::max_load_factor(float ml)
+  template < typename Key, typename T, typename Hash, typename Eq >
+  void shramko::HashTable< Key, T, Hash, Eq >::max_load_factor(float ml)
   {
-    if (ml > 0.0f && ml <= 1.0f)
+    if (ml <= 0.0f || ml > 1.0f)
     {
-      max_load_factor_ = ml;
-
-      if (loadFactor() > max_load_factor_)
-      {
-        rehash(capacity_ * 2);
-      }
+      throw std::invalid_argument("Max load factor must be in (0, 1]");
+    }
+    max_load_factor_ = ml;
+    if (loadFactor() > max_load_factor_)
+    {
+      rehash(capacity_ * 2);
     }
   }
 }

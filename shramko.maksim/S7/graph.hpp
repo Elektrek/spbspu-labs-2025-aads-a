@@ -36,7 +36,8 @@ namespace shramko
 
   private:
     std::set< std::string > vertexes;
-    HashTable< std::pair< std::string, std::string >, std::vector< int >, PairHash > edges;
+    HashTable< std::pair< std::string, std::string >, std::vector< int >,
+      shramko::PairHash, std::equal_to< std::pair< std::string, std::string > > > edges;
   };
 }
 
