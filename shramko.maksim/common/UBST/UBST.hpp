@@ -1,5 +1,5 @@
-#ifndef SHRAMKO_UBST_HPP
-#define SHRAMKO_UBST_HPP
+#ifndef UBST_HPP
+#define UBST_HPP
 
 #include <functional>
 #include <memory>
@@ -114,9 +114,10 @@ public:
     UBstTree(const UBstTree& other) {
         root_ = copyTree(other.root_);
         size_ = other.size_;
+        comp_ = other.comp_;
     }
 
-    UBstTree(UBstTree&& other) noexcept : root_(other.root_), size_(other.size_) {
+    UBstTree(UBstTree&& other) noexcept : root_(other.root_), size_(other.size_), comp_(std::move(other.comp_)) {
         other.root_ = nullptr;
         other.size_ = 0;
     }
@@ -130,6 +131,7 @@ public:
             clear();
             root_ = copyTree(other.root_);
             size_ = other.size_;
+            comp_ = other.comp_;
         }
         return *this;
     }
@@ -139,6 +141,7 @@ public:
             clear();
             root_ = other.root_;
             size_ = other.size_;
+            comp_ = std::move(other.comp_);
             other.root_ = nullptr;
             other.size_ = 0;
         }
@@ -300,10 +303,18 @@ public:
         using reference = const value_type&;
 
         const_iterator() : current(nullptr) {}
-        const_iterator(const Node* n) : current(n) {}
+        explicit const_iterator(const Node* n) : current(n) {}
 
-        reference operator*() const { return {current->key, current->value}; }
-        pointer operator->() const { return &**this; }
+        reference operator*() const {
+            static thread_local value_type temp;
+            temp.first = current->key;
+            temp.second = current->value;
+            return temp;
+        }
+
+        pointer operator->() const {
+            return std::addressof(operator*());
+        }
 
         const_iterator& operator++() {
             if (current == nullptr) return *this;
