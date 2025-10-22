@@ -6,9 +6,10 @@
 namespace shramko
 {
   template < typename Key, typename Value >
-  struct Node
+  struct HashNode
   {
-    std::pair< const Key, Value > data;
+    Key key;
+    Value value;
     bool occupied = false;
     bool deleted = false;
   };
