@@ -25,7 +25,8 @@ public:
 
 private:
     struct Slot {
-        value_type value;
+        Key key;
+        T data;
         bool occupied = false;
         bool deleted = false;
     };
@@ -66,10 +67,12 @@ public:
     }
 
     HashTable(const HashTable& rhs)
-        : HashTable(rhs.capacity_) {
+        : capacity_(rhs.capacity_), max_load_factor_(rhs.max_load_factor_), hash_(rhs.hash_), eq_(rhs.eq_) {
+        allocate_slots(capacity_);
         for (size_type i = 0; i < capacity_; ++i) {
             if (rhs.slots_[i].occupied && !rhs.slots_[i].deleted) {
-                slots_[i].value = rhs.slots_[i].value;
+                slots_[i].key = rhs.slots_[i].key;
+                slots_[i].data = rhs.slots_[i].data;
                 slots_[i].occupied = true;
                 slots_[i].deleted = false;
                 ++size_;
@@ -78,9 +81,8 @@ public:
     }
 
     HashTable(HashTable&& rhs) noexcept
-        : size_(rhs.size_), capacity_(rhs.capacity_),
-          slots_(std::move(rhs.slots_)), max_load_factor_(rhs.max_load_factor_),
-          hash_(std::move(rhs.hash_)), eq_(std::move(rhs.eq_)) {
+        : slots_(std::move(rhs.slots_)), size_(rhs.size_), capacity_(rhs.capacity_),
+          max_load_factor_(rhs.max_load_factor_), hash_(std::move(rhs.hash_)), eq_(std::move(rhs.eq_)) {
         rhs.size_ = 0;
         rhs.capacity_ = 0;
         rhs.max_load_factor_ = 0.75f;
@@ -98,9 +100,9 @@ public:
     HashTable& operator=(HashTable&& rhs) noexcept {
         if (this == &rhs) return *this;
         clear();
+        slots_ = std::move(rhs.slots_);
         size_ = rhs.size_;
         capacity_ = rhs.capacity_;
-        slots_ = std::move(rhs.slots_);
         max_load_factor_ = rhs.max_load_factor_;
         hash_ = std::move(rhs.hash_);
         eq_ = std::move(rhs.eq_);
@@ -111,8 +113,8 @@ public:
     }
 
     T& operator[](const Key& key) {
-        auto p = insert_or_assign(key, T{});
-        auto it = p.first;
+        std::pair<iterator, bool> p = insert_or_assign(key, T{});
+        iterator it = p.first;
         return it->second;
     }
 
@@ -142,17 +144,18 @@ public:
             size_type pos = (index + i) % capacity_;
             if (!slots_[pos].occupied) {
                 if (first_deleted != capacity_) pos = first_deleted;
-                slots_[pos].value = value;
+                slots_[pos].key = value.first;
+                slots_[pos].data = value.second;
                 slots_[pos].occupied = true;
                 slots_[pos].deleted = false;
                 ++size_;
-                return {iterator(&slots_[pos], slots_.data() + capacity_, *this), true};
+                return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), true};
             }
             if (slots_[pos].deleted && first_deleted == capacity_) {
                 first_deleted = pos;
             }
-            if (slots_[pos].occupied && equal(slots_[pos].value.first, value.first)) {
-                return {iterator(&slots_[pos], slots_.data() + capacity_, *this), false};
+            if (slots_[pos].occupied && equal(slots_[pos].key, value.first)) {
+                return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), false};
             }
         }
         throw std::overflow_error("Hash table overflow");
@@ -168,24 +171,29 @@ public:
             size_type pos = (index + i) % capacity_;
             if (!slots_[pos].occupied) {
                 if (first_deleted != capacity_) pos = first_deleted;
-                slots_[pos].value = std::move(value);
+                slots_[pos].key = std::move(value.first);
+                slots_[pos].data = std::move(value.second);
                 slots_[pos].occupied = true;
                 slots_[pos].deleted = false;
                 ++size_;
-                return {iterator(&slots_[pos], slots_.data() + capacity_, *this), true};
+                return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), true};
             }
             if (slots_[pos].deleted && first_deleted == capacity_) {
                 first_deleted = pos;
             }
-            if (slots_[pos].occupied && equal(slots_[pos].value.first, value.first)) {
-                return {iterator(&slots_[pos], slots_.data() + capacity_, *this), false};
+            if (slots_[pos].occupied && equal(slots_[pos].key, value.first)) {
+                return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), false};
             }
         }
         throw std::overflow_error("Hash table overflow");
     }
 
+    std::pair<iterator, bool> insert(const Key& key, const T& obj) {
+        return emplace(key, obj);
+    }
+
     std::pair<iterator, bool> insert(const Key& key, T&& obj) {
-        return emplace(key, std::forward<T>(obj));
+        return emplace(key, std::move(obj));
     }
 
     template <typename... Args>
@@ -206,30 +214,52 @@ public:
             size_type pos = (index + i) % capacity_;
             if (!slots_[pos].occupied) {
                 if (first_deleted != capacity_) pos = first_deleted;
-                slots_[pos].value = value_type(key, std::move(obj));
+                slots_[pos].key = key;
+                slots_[pos].data = std::move(obj);
                 slots_[pos].occupied = true;
                 slots_[pos].deleted = false;
                 ++size_;
-                return {iterator(&slots_[pos], slots_.data() + capacity_, *this), true};
+                return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), true};
             }
             if (slots_[pos].deleted && first_deleted == capacity_) {
                 first_deleted = pos;
             }
-            if (slots_[pos].occupied && equal(slots_[pos].value.first, key)) {
-                slots_[pos].value.second = std::move(obj);
-                return {iterator(&slots_[pos], slots_.data() + capacity_, *this), false};
+            if (slots_[pos].occupied && equal(slots_[pos].key, key)) {
+                slots_[pos].data = std::move(obj);
+                return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), false};
             }
         }
         throw std::overflow_error("Hash table overflow");
     }
 
-    template <typename... Args>
-    iterator insert_or_assign(const Key& key, Args&&... args) {
-        auto p = emplace(key, std::forward<Args>(args)...);
-        auto it = p.first;
+    std::pair<iterator, bool> insert_or_assign(const Key& key, const T& obj) {
+        auto p = emplace(key, obj);
+        iterator it = p.first;
         bool inserted = p.second;
         if (!inserted) {
-            it->second = T(std::forward<Args>(args)...);
+            it->second = obj;
+        }
+        return p;
+    }
+
+    std::pair<iterator, bool> insert_or_assign(const Key& key, T&& obj) {
+        auto p = emplace(key, std::move(obj));
+        iterator it = p.first;
+        bool inserted = p.second;
+        if (!inserted) {
+            it->second = std::move(obj);
+        }
+        return p;
+    }
+
+    template <typename... Args>
+    iterator insert_or_assign(const Key& key, Args&&... args) {
+        T obj(std::forward<Args>(args)...);
+        auto p = emplace(key, obj);
+        iterator it = p.first;
+        bool inserted = p.second;
+        if (!inserted) {
+            it->second = obj;
         }
         return it;
     }
@@ -258,9 +288,9 @@ public:
     }
 
     void swap(HashTable& rhs) noexcept {
+        std::swap(slots_, rhs.slots_);
         std::swap(size_, rhs.size_);
         std::swap(capacity_, rhs.capacity_);
-        std::swap(slots_, rhs.slots_);
         std::swap(max_load_factor_, rhs.max_load_factor_);
         std::swap(hash_, rhs.hash_);
         std::swap(eq_, rhs.eq_);
@@ -295,7 +325,7 @@ public:
         HashTable tmp(n);
         for (const auto& slot : slots_) {
             if (slot.occupied && !slot.deleted) {
-                tmp.insert(slot.value);
+                tmp.insert(slot.key, slot.data);
             }
         }
         swap(tmp);
@@ -311,8 +341,8 @@ public:
             size_type pos = (index + i) % capacity_;
             if (!slots_[pos].occupied) break;
             if (slots_[pos].deleted) continue;
-            if (equal(slots_[pos].value.first, key)) {
-                return iterator(&slots_[pos], slots_.data() + capacity_, *this);
+            if (equal(slots_[pos].key, key)) {
+                return iterator(slots_.data() + pos, slots_.data() + capacity_, *this);
             }
         }
         return end();
@@ -324,8 +354,8 @@ public:
             size_type pos = (index + i) % capacity_;
             if (!slots_[pos].occupied) break;
             if (slots_[pos].deleted) continue;
-            if (equal(slots_[pos].value.first, key)) {
-                return cIterator(&slots_[pos], slots_.data() + capacity_, *this);
+            if (equal(slots_[pos].key, key)) {
+                return cIterator(slots_.data() + pos, slots_.data() + capacity_, *this);
             }
         }
         return end();
@@ -382,8 +412,13 @@ public:
             other.table_ = nullptr;
         }
 
-        reference operator*() const { return current_->value; }
-        pointer operator->() const { return &current_->value; }
+        reference operator*() const {
+            return *reinterpret_cast<value_type*>(std::addressof(current_->key));
+        }
+
+        pointer operator->() const {
+            return reinterpret_cast<value_type*>(std::addressof(current_->key));
+        }
 
         iterator& operator++() {
             ++current_;
@@ -437,8 +472,13 @@ public:
             other.table_ = nullptr;
         }
 
-        reference operator*() const { return current_->value; }
-        pointer operator->() const { return &current_->value; }
+        reference operator*() const {
+            return *reinterpret_cast<const value_type*>(std::addressof(current_->key));
+        }
+
+        pointer operator->() const {
+            return reinterpret_cast<const value_type*>(std::addressof(current_->key));
+        }
 
         cIterator& operator++() {
             ++current_;

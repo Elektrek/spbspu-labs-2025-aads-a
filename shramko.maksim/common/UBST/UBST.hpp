@@ -6,6 +6,7 @@
 #include <utility>
 #include <queue>
 #include <stack>
+#include <stdexcept>
 
 namespace shramko {
 
@@ -18,15 +19,18 @@ public:
     using size_type = std::size_t;
     using key_compare = Compare;
 
+    class const_iterator;
+
 private:
     struct Node {
-        value_type data;
+        Key key;
+        Value value;
         Node* left = nullptr;
         Node* right = nullptr;
         Node* parent = nullptr;
 
-        explicit Node(const value_type& val) : data(val) {}
-        explicit Node(value_type&& val) : data(std::move(val)) {}
+        Node(const Key& k, const Value& v) : key(k), value(v) {}
+        Node(Key&& k, Value&& v) : key(std::move(k)), value(std::move(v)) {}
     };
 
     Node* root_ = nullptr;
@@ -35,9 +39,9 @@ private:
 
     Node* findNode(Node* node, const Key& key) const {
         if (node == nullptr) return nullptr;
-        if (comp_(key, node->data.first)) {
+        if (comp_(key, node->key)) {
             return findNode(node->left, key);
-        } else if (comp_(node->data.first, key)) {
+        } else if (comp_(node->key, key)) {
             return findNode(node->right, key);
         }
         return node;
@@ -45,17 +49,17 @@ private:
 
     Node* insertNode(Node* node, Node* parent, value_type&& val) {
         if (node == nullptr) {
-            Node* newNode = new Node(std::move(val));
+            Node* newNode = new Node(std::move(val.first), std::move(val.second));
             newNode->parent = parent;
             ++size_;
             return newNode;
         }
-        if (comp_(val.first, node->data.first)) {
+        if (comp_(val.first, node->key)) {
             node->left = insertNode(node->left, node, std::move(val));
-        } else if (comp_(node->data.first, val.first)) {
+        } else if (comp_(node->key, val.first)) {
             node->right = insertNode(node->right, node, std::move(val));
         } else {
-            node->data.second = std::move(val.second);
+            node->value = std::move(val.second);
         }
         return node;
     }
@@ -86,7 +90,8 @@ private:
             transplant(node, minRight);
             minRight->left = node->left;
             minRight->left->parent = minRight;
-            minRight->data = std::move(node->data);
+            minRight->key = std::move(node->key);
+            minRight->value = std::move(node->value);
         }
         --size_;
         delete node;
@@ -146,7 +151,7 @@ public:
             root_ = insertNode(root_, nullptr, {key, Value{}});
             node = findNode(root_, key);
         }
-        return node->data.second;
+        return node->value;
     }
 
     const Value& at(const Key& key) const {
@@ -154,7 +159,7 @@ public:
         if (node == nullptr) {
             throw std::out_of_range("Key not found");
         }
-        return node->data.second;
+        return node->value;
     }
 
     void insert(const value_type& val) {
@@ -165,11 +170,13 @@ public:
         root_ = insertNode(root_, nullptr, std::move(val));
     }
 
-    void erase(const Key& key) {
+    size_type erase(const Key& key) {
         Node* node = findNode(root_, key);
         if (node != nullptr) {
             deleteNode(node);
+            return 1;
         }
+        return 0;
     }
 
     bool contains(const Key& key) const {
@@ -201,7 +208,7 @@ public:
             }
             current = stk.top();
             stk.pop();
-            f(current->data);
+            f({current->key, current->value});
             current = current->right;
         }
         return f;
@@ -218,7 +225,7 @@ public:
             }
             current = stk.top();
             stk.pop();
-            f(current->data);
+            f({current->key, current->value});
             current = current->left;
         }
         return f;
@@ -232,17 +239,40 @@ public:
         while (!q.empty()) {
             Node* current = q.front();
             q.pop();
-            f(current->data);
+            f({current->key, current->value});
             if (current->left) q.push(current->left);
             if (current->right) q.push(current->right);
         }
         return f;
     }
 
+    const_iterator find(const Key& key) const {
+        return const_iterator(findNode(root_, key));
+    }
+
+    const_iterator begin() const {
+        if (root_ == nullptr) return end();
+        Node* cur = root_;
+        while (cur->left) cur = cur->left;
+        return const_iterator(cur);
+    }
+
+    const_iterator end() const {
+        return const_iterator(nullptr);
+    }
+
+    const_iterator cbegin() const {
+        return begin();
+    }
+
+    const_iterator cend() const {
+        return end();
+    }
+
 private:
     Node* copyTree(Node* node) const {
         if (node == nullptr) return nullptr;
-        Node* newNode = new Node(node->data);
+        Node* newNode = new Node(node->key, node->value);
         newNode->left = copyTree(node->left);
         if (newNode->left) newNode->left->parent = newNode;
         newNode->right = copyTree(node->right);
@@ -256,6 +286,72 @@ private:
         clearTree(node->right);
         delete node;
     }
+
+public:
+    class const_iterator {
+    private:
+        const Node* current;
+
+    public:
+        using iterator_category = std::bidirectional_iterator_tag;
+        using value_type = std::pair<const Key, Value>;
+        using difference_type = std::ptrdiff_t;
+        using pointer = const value_type*;
+        using reference = const value_type&;
+
+        const_iterator() : current(nullptr) {}
+        const_iterator(const Node* n) : current(n) {}
+
+        reference operator*() const { return {current->key, current->value}; }
+        pointer operator->() const { return &**this; }
+
+        const_iterator& operator++() {
+            if (current == nullptr) return *this;
+            if (current->right) {
+                current = current->right;
+                while (current->left) current = current->left;
+            } else {
+                const Node* p = current->parent;
+                while (p && current == p->right) {
+                    current = p;
+                    p = p->parent;
+                }
+                current = p;
+            }
+            return *this;
+        }
+
+        const_iterator operator++(int) {
+            const_iterator tmp = *this;
+            ++*this;
+            return tmp;
+        }
+
+        const_iterator& operator--() {
+            if (current == nullptr) return *this;
+            if (current->left) {
+                current = current->left;
+                while (current->right) current = current->right;
+            } else {
+                const Node* p = current->parent;
+                while (p && current == p->left) {
+                    current = p;
+                    p = p->parent;
+                }
+                current = p;
+            }
+            return *this;
+        }
+
+        const_iterator operator--(int) {
+            const_iterator tmp = *this;
+            --*this;
+            return tmp;
+        }
+
+        bool operator==(const const_iterator& other) const { return current == other.current; }
+        bool operator!=(const const_iterator& other) const { return !(*this == other); }
+    };
 };
 
 }
