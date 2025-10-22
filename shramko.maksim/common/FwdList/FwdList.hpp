@@ -1,5 +1,5 @@
-#ifndef FWD_LIST_HPP
-#define FWD_LIST_HPP
+#ifndef FORWARDLIST_HPP
+#define FORWARDLIST_HPP
 
 #include <cassert>
 #include <cstddef>
@@ -16,11 +16,11 @@ namespace shramko
   class ForwardList
   {
   public:
-    friend class ConstIterator< T >;
-    friend class Iterator< T >;
+    friend class FwdConstIterator< T >;
+    friend class FwdIterator< T >;
 
-    using const_iterator = ConstIterator< T >;
-    using iterator = Iterator< T >;
+    using const_iterator = FwdConstIterator< T >;
+    using iterator = FwdIterator< T >;
 
     ForwardList();
     ~ForwardList() noexcept;

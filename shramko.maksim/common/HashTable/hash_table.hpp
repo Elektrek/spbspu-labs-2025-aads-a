@@ -2,7 +2,7 @@
 #define HASH_TABLE_HPP
 
 #include "iterator.hpp"
-#include "node.hpp"
+#include "hash_node.hpp"
 
 namespace shramko
 {

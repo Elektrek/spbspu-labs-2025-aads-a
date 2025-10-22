@@ -12,7 +12,7 @@ namespace shramko
   class ForwardList;
 
   template< typename T >
-  class Iterator: public ConstIterator< T >
+  class FwdIterator: public FwdConstIterator< T >
   {
   public:
     using iterator_category = std::forward_iterator_tag;
@@ -21,29 +21,29 @@ namespace shramko
     using pointer = T*;
     using reference = T&;
 
-    using ConstIterator< T >::ConstIterator;
+    using FwdConstIterator< T >::FwdConstIterator;
 
-    Iterator& operator++()
+    FwdIterator& operator++()
     {
-      ConstIterator< T >::operator++();
+      FwdConstIterator< T >::operator++();
       return *this;
     }
 
-    Iterator operator++(int)
+    FwdIterator operator++(int)
     {
-      Iterator temp = *this;
-      ConstIterator< T >::operator++(0);
+      FwdIterator temp = *this;
+      FwdConstIterator< T >::operator++();
       return temp;
     }
 
     reference operator*() const
     {
-      return const_cast< reference >(ConstIterator< T >::operator*());
+      return const_cast< reference >(FwdConstIterator< T >::operator*());
     }
 
     pointer operator->() const
     {
-      return const_cast< pointer >(ConstIterator< T >::operator->());
+      return const_cast< pointer >(FwdConstIterator< T >::operator->());
     }
 
   private:

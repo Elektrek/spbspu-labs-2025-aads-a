@@ -15,7 +15,7 @@ void create(const shramko::ForwardList< std::string >& args, DictionaryManager& 
     os << "INVALID COMMAND\n";
     return;
   }
-  auto it = args.begin();
+  auto it = args.cbegin();
   std::string name = *it;
   if (dm.createDict(name))
   {
@@ -34,7 +34,7 @@ void add(const shramko::ForwardList< std::string >& args, DictionaryManager& dm,
     os << "INVALID COMMAND\n";
     return;
   }
-  auto it = args.begin();
+  auto it = args.cbegin();
   std::string dict_name = *it;
   ++it;
   std::string word = *it;
@@ -75,7 +75,7 @@ void increment(const shramko::ForwardList< std::string >& args, DictionaryManage
     os << "INVALID COMMAND\n";
     return;
   }
-  auto it = args.begin();
+  auto it = args.cbegin();
   std::string dict_name = *it;
   ++it;
   std::string word = *it;
@@ -116,7 +116,7 @@ void search(const shramko::ForwardList< std::string >& args, DictionaryManager& 
     os << "INVALID COMMAND\n";
     return;
   }
-  auto it = args.begin();
+  auto it = args.cbegin();
   std::string dict_name = *it;
   ++it;
   std::string word = *it;
@@ -144,16 +144,10 @@ void delete_(const shramko::ForwardList< std::string >& args, DictionaryManager&
     os << "INVALID COMMAND\n";
     return;
   }
-  auto it = args.begin();
+  auto it = args.cbegin();
   std::string dict_name = *it;
   ++it;
   std::string word = *it;
-  const auto* dict = dm.getDict(dict_name);
-  if (!dict)
-  {
-    os << "DICT NOT FOUND\n";
-    return;
-  }
   if (dm.removeWord(dict_name, word))
   {
     os << "OK: Deleted '" << word << "'\n";
@@ -171,7 +165,7 @@ void dump(const shramko::ForwardList< std::string >& args, DictionaryManager& dm
     os << "INVALID COMMAND\n";
     return;
   }
-  auto it = args.begin();
+  auto it = args.cbegin();
   std::string dict_name = *it;
   const auto* dict = dm.getDict(dict_name);
   if (!dict)
@@ -205,7 +199,7 @@ void top(const shramko::ForwardList< std::string >& args, DictionaryManager& dm,
     os << "INVALID COMMAND\n";
     return;
   }
-  auto it = args.begin();
+  auto it = args.cbegin();
   std::string dict_name = *it;
   ++it;
   std::string nstr = *it;
@@ -265,7 +259,7 @@ void bot(const shramko::ForwardList< std::string >& args, DictionaryManager& dm,
     os << "INVALID COMMAND\n";
     return;
   }
-  auto it = args.begin();
+  auto it = args.cbegin();
   std::string dict_name = *it;
   ++it;
   std::string nstr = *it;
@@ -325,7 +319,7 @@ void minfreq(const shramko::ForwardList< std::string >& args, DictionaryManager&
     os << "INVALID COMMAND\n";
     return;
   }
-  auto it = args.begin();
+  auto it = args.cbegin();
   std::string dict_name = *it;
   ++it;
   std::string minstr = *it;
@@ -369,7 +363,7 @@ void maxfreq(const shramko::ForwardList< std::string >& args, DictionaryManager&
     os << "INVALID COMMAND\n";
     return;
   }
-  auto it = args.begin();
+  auto it = args.cbegin();
   std::string dict_name = *it;
   ++it;
   std::string maxstr = *it;
@@ -413,7 +407,7 @@ void median(const shramko::ForwardList< std::string >& args, DictionaryManager& 
     os << "INVALID COMMAND\n";
     return;
   }
-  auto it = args.begin();
+  auto it = args.cbegin();
   std::string dict_name = *it;
   const auto* dict = dm.getDict(dict_name);
   if (!dict)

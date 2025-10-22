@@ -3,7 +3,7 @@
 
 #include <cassert>
 #include <iterator>
-#include "node.hpp"
+#include "hash_node.hpp"
 
 namespace shramko
 {

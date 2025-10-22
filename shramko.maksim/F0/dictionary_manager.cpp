@@ -1,14 +1,11 @@
 #include "dictionary_manager.hpp"
 #include <fstream>
 #include <cctype>
-#include <UBST/UBST.hpp>
-#include <HashTable/hash_table.hpp>
-#include <FwdList/FwdList.hpp>
 #include <algorithm>
 
 bool DictionaryManager::createDict(const std::string& name)
 {
-  auto inserted = dicts_.insert({name, shramko::UBstTree< std::string, int >()});
+  auto inserted = dicts_.insert(name, shramko::UBstTree< std::string, int >());
   return inserted.second;
 }
 
@@ -62,7 +59,7 @@ const shramko::UBstTree< std::string, int >* DictionaryManager::getDict(const st
 shramko::UBstTree< std::string, int >* DictionaryManager::getDictMutable(const std::string& name)
 {
   auto it = dicts_.find(name);
-  if (it == dicts_.end())
+  if (it == dicts_.cend())
   {
     return nullptr;
   }

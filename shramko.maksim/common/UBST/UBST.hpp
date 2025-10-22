@@ -49,6 +49,8 @@ namespace shramko
     template < typename F >
     F traverse_breadth(F f) const;
 
+    size_t erase(const Key& key);
+
     friend class ConstIterator< Key, Value, Compare >;
 
   private:
@@ -68,6 +70,8 @@ namespace shramko
     const Node< Key, Value >* maxNode(const Node< Key, Value >* node) const;
 
     void copyTree(Node< Key, Value >*& node, Node< Key, Value >* otherNode, Node< Key, Value >* parent);
+
+    Node< Key, Value >* removeNode(Node< Key, Value >* node, const Key& key);
   };
 
   template < typename Key, typename Value, typename Compare >
@@ -111,30 +115,28 @@ namespace shramko
   }
 
   template < typename Key, typename Value, typename Compare >
-  UBstTree< Key, Value, Compare >& UBstTree< Key, Value, Compare >::operator=(const UBstTree& other)
+  UBstTree< Key, Value, Compare >& UBstTree< Key, Value, Compare >::operator=(const UBstTree< Key, Value, Compare >& other)
   {
-    if (this == &other)
+    if (this != &other)
     {
-      return *this;
+      UBstTree< Key, Value, Compare > temp(other);
+      swap(temp);
     }
-    UBstTree temp(other);
-    swap(temp);
     return *this;
   }
 
   template < typename Key, typename Value, typename Compare >
-  UBstTree< Key, Value, Compare >& UBstTree< Key, Value, Compare >::operator=(UBstTree&& other) noexcept
+  UBstTree< Key, Value, Compare >& UBstTree< Key, Value, Compare >::operator=(UBstTree< Key, Value, Compare >&& other) noexcept
   {
-    if (this == &other)
+    if (this != &other)
     {
-      return *this;
+      clear();
+      root_ = other.root_;
+      size_ = other.size_;
+      comp_ = std::move(other.comp_);
+      other.root_ = nullptr;
+      other.size_ = 0;
     }
-    clear();
-    root_ = other.root_;
-    size_ = other.size_;
-    comp_ = std::move(other.comp_);
-    other.root_ = nullptr;
-    other.size_ = 0;
     return *this;
   }
 
@@ -159,7 +161,7 @@ namespace shramko
   }
 
   template < typename Key, typename Value, typename Compare >
-  void UBstTree< Key, Value, Compare >::swap(UBstTree& other) noexcept
+  void UBstTree< Key, Value, Compare >::swap(UBstTree< Key, Value, Compare >& other) noexcept
   {
     std::swap(root_, other.root_);
     std::swap(size_, other.size_);
@@ -169,19 +171,20 @@ namespace shramko
   template < typename Key, typename Value, typename Compare >
   Value& UBstTree< Key, Value, Compare >::operator[](const Key& key)
   {
-    Node< Key, Value >* node = findNode(root_, key);
-    if (!node)
-    {
-      root_ = insertNode(root_, key, Value(), nullptr, size_);
-      node = findNode(root_, key);
-    }
-    return node->data.second;
+    size_t dummy = 0;
+    root_ = insertNode(root_, key, Value(), nullptr, dummy);
+    return root_->data.second;
   }
 
   template < typename Key, typename Value, typename Compare >
   const Value& UBstTree< Key, Value, Compare >::operator[](const Key& key) const
   {
-    return at(key);
+    const Node< Key, Value >* node = findNode(root_, key);
+    if (!node)
+    {
+      throw std::out_of_range("Key not found");
+    }
+    return node->data.second;
   }
 
   template < typename Key, typename Value, typename Compare >
@@ -207,36 +210,31 @@ namespace shramko
   }
 
   template < typename Key, typename Value, typename Compare >
-  typename UBstTree< Key, Value, Compare >::const_iterator
-  UBstTree< Key, Value, Compare >::cbegin() const noexcept
+  typename UBstTree< Key, Value, Compare >::const_iterator UBstTree< Key, Value, Compare >::cbegin() const noexcept
   {
     return const_iterator(minNode(root_), this);
   }
 
   template < typename Key, typename Value, typename Compare >
-  typename UBstTree< Key, Value, Compare >::const_iterator
-  UBstTree< Key, Value, Compare >::cend() const noexcept
+  typename UBstTree< Key, Value, Compare >::const_iterator UBstTree< Key, Value, Compare >::cend() const noexcept
   {
     return const_iterator(nullptr, this);
   }
 
   template < typename Key, typename Value, typename Compare >
-  typename UBstTree< Key, Value, Compare >::const_reverse_iterator
-  UBstTree< Key, Value, Compare >::crbegin() const noexcept
+  typename UBstTree< Key, Value, Compare >::const_reverse_iterator UBstTree< Key, Value, Compare >::crbegin() const noexcept
   {
     return const_reverse_iterator(cend());
   }
 
   template < typename Key, typename Value, typename Compare >
-  typename UBstTree< Key, Value, Compare >::const_reverse_iterator
-  UBstTree< Key, Value, Compare >::crend() const noexcept
+  typename UBstTree< Key, Value, Compare >::const_reverse_iterator UBstTree< Key, Value, Compare >::crend() const noexcept
   {
     return const_reverse_iterator(cbegin());
   }
 
   template < typename Key, typename Value, typename Compare >
-  typename UBstTree< Key, Value, Compare >::const_iterator
-  UBstTree< Key, Value, Compare >::find(const Key& key) const noexcept
+  typename UBstTree< Key, Value, Compare >::const_iterator UBstTree< Key, Value, Compare >::find(const Key& key) const noexcept
   {
     const Node< Key, Value >* node = findNode(root_, key);
     return const_iterator(node, this);
@@ -246,19 +244,22 @@ namespace shramko
   template < typename F >
   F UBstTree< Key, Value, Compare >::traverse_lnr(F f) const
   {
-    std::stack< Node< Key, Value >* > stack;
-    Node< Key, Value >* current = root_;
-    while (current || !stack.empty())
+    std::stack<const Node< Key, Value >*> stk;
+    const Node< Key, Value >* curr = root_;
+    while (curr || !stk.empty())
     {
-      while (current)
+      while (curr)
       {
-        stack.push(current);
-        current = current->left;
+        stk.push(curr);
+        curr = curr->left;
       }
-      current = stack.top();
-      stack.pop();
-      f(current->data);
-      current = current->right;
+      curr = stk.top();
+      stk.pop();
+      if (!f(curr->data))
+      {
+        return f;
+      }
+      curr = curr->right;
     }
     return f;
   }
@@ -267,19 +268,22 @@ namespace shramko
   template < typename F >
   F UBstTree< Key, Value, Compare >::traverse_rnl(F f) const
   {
-    std::stack< Node< Key, Value >* > stack;
-    Node< Key, Value >* current = root_;
-    while (current || !stack.empty())
+    std::stack<const Node< Key, Value >*> stk;
+    const Node< Key, Value >* curr = root_;
+    while (curr || !stk.empty())
     {
-      while (current)
+      while (curr)
       {
-        stack.push(current);
-        current = current->right;
+        stk.push(curr);
+        curr = curr->right;
       }
-      current = stack.top();
-      stack.pop();
-      f(current->data);
-      current = current->left;
+      curr = stk.top();
+      stk.pop();
+      stk.push(curr->left);
+      if (!f(curr->data))
+      {
+        return f;
+      }
     }
     return f;
   }
@@ -292,27 +296,104 @@ namespace shramko
     {
       return f;
     }
-    std::queue< Node< Key, Value >* > queue;
-    queue.push(root_);
-    while (!queue.empty())
+    std::queue<const Node< Key, Value >*> q;
+    q.push(root_);
+    while (!q.empty())
     {
-      Node< Key, Value >* current = queue.front();
-      queue.pop();
-      f(current->data);
-      if (current->left)
+      const Node< Key, Value >* curr = q.front();
+      q.pop();
+      if (!f(curr->data))
       {
-        queue.push(current->left);
+        return f;
       }
-      if (current->right)
+      if (curr->left)
       {
-        queue.push(current->right);
+        q.push(curr->left);
+      }
+      if (curr->right)
+      {
+        q.push(curr->right);
       }
     }
     return f;
   }
 
   template < typename Key, typename Value, typename Compare >
-  Node< Key, Value >* UBstTree< Key, Value, Compare >::findNode(Node< Key, Value >* node, const Key& key)
+  size_t shramko::UBstTree< Key, Value, Compare >::erase(const Key& key)
+  {
+    if (findNode(root_, key) == nullptr)
+    {
+      return 0;
+    }
+    root_ = removeNode(root_, key);
+    if (root_)
+    {
+      root_->parent = nullptr;
+    }
+    --size_;
+    return 1;
+  }
+
+  template < typename Key, typename Value, typename Compare >
+  shramko::Node< Key, Value >* shramko::UBstTree< Key, Value, Compare >::removeNode(shramko::Node< Key, Value >* node, const Key& key)
+  {
+    if (!node)
+    {
+      return node;
+    }
+    if (comp_(key, node->data.first))
+    {
+      node->left = removeNode(node->left, key);
+      if (node->left)
+      {
+        node->left->parent = node;
+      }
+      return node;
+    }
+    else if (comp_(node->data.first, key))
+    {
+      node->right = removeNode(node->right, key);
+      if (node->right)
+      {
+        node->right->parent = node;
+      }
+      return node;
+    }
+    // Found the node to remove
+    if (!node->left || !node->right)
+    {
+      shramko::Node< Key, Value >* temp = node->left ? node->left : node->right;
+      if (temp)
+      {
+        temp->parent = node->parent;
+      }
+      if (node->parent)
+      {
+        if (node == node->parent->left)
+        {
+          node->parent->left = temp;
+        }
+        else
+        {
+          node->parent->right = temp;
+        }
+      }
+      delete node;
+      return temp;
+    }
+    // Two children
+    shramko::Node< Key, Value >* succ = minNode(node->right);
+    node->data = succ->data;
+    node->right = removeNode(node->right, succ->data.first);
+    if (node->right)
+    {
+      node->right->parent = node;
+    }
+    return node;
+  }
+
+  template < typename Key, typename Value, typename Compare >
+  shramko::Node< Key, Value >* UBstTree< Key, Value, Compare >::findNode(Node< Key, Value >* node, const Key& key)
   {
     if (!node)
     {
