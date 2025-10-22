@@ -1,6 +1,10 @@
 #ifndef HASH_TABLE_HPP
 #define HASH_TABLE_HPP
 
+#include <vector>
+#include <utility>
+#include <functional>
+#include <stdexcept>
 #include "iterator.hpp"
 #include "hash_node.hpp"
 
@@ -48,74 +52,64 @@ namespace shramko
     template< class InputIt >
     iterator erase(InputIt first, InputIt last);
     size_t erase(const Key& key);
-    void clear() noexcept;
     void swap(HashTable& rhs) noexcept;
+    void clear() noexcept;
 
   private:
-    Node< Key, T >* slots_;
+    std::vector< HashNode< Key, T > > slots_;
     size_t capacity_;
     size_t size_;
-    float max_load_factor_ = 0.7f;
-    size_t compute_hash(const Key& key) const noexcept;
+    float max_load_factor_;
+
     size_t find_position(const Key& key) const noexcept;
     size_t get_insert_position(const Key& key) const noexcept;
   };
 
   template< class Key, class T, class Hash, class Eq >
-  HashTable< Key, T, Hash, Eq >::HashTable()
-    : HashTable(10)
-  {}
+  HashTable< Key, T, Hash, Eq >::~HashTable() noexcept
+  {
+    clear();
+  }
 
   template< class Key, class T, class Hash, class Eq >
-  HashTable< Key, T, Hash, Eq >::HashTable(size_t capacity)
-    : slots_(new Node< Key, T >[capacity]{}),
-      capacity_(capacity),
-      size_(0)
-  {}
+  HashTable< Key, T, Hash, Eq >::HashTable() : capacity_(16), size_(0), max_load_factor_(0.75f)
+  {
+    slots_.resize(capacity_);
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  HashTable< Key, T, Hash, Eq >::HashTable(size_t capacity) : capacity_(capacity), size_(0), max_load_factor_(0.75f)
+  {
+    slots_.resize(capacity_);
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  HashTable< Key, T, Hash, Eq >::HashTable(const HashTable& rhs) : capacity_(rhs.capacity_), size_(0), max_load_factor_(rhs.max_load_factor_)
+  {
+    slots_.resize(capacity_);
+    insert(rhs.begin(), rhs.end());
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  HashTable< Key, T, Hash, Eq >::HashTable(HashTable&& rhs) noexcept : slots_(std::move(rhs.slots_)), capacity_(rhs.capacity_), size_(rhs.size_), max_load_factor_(rhs.max_load_factor_)
+  {
+    rhs.capacity_ = 0;
+    rhs.size_ = 0;
+  }
 
   template< class Key, class T, class Hash, class Eq >
   template< class InputIt >
-  HashTable< Key, T, Hash, Eq >::HashTable(InputIt firstIt, InputIt lastIt)
-    : HashTable()
+  HashTable< Key, T, Hash, Eq >::HashTable(InputIt firstIt, InputIt lastIt) : capacity_(16), size_(0), max_load_factor_(0.75f)
   {
+    slots_.resize(capacity_);
     insert(firstIt, lastIt);
   }
 
   template< class Key, class T, class Hash, class Eq >
-  HashTable< Key, T, Hash, Eq >::HashTable(std::initializer_list< std::pair< Key, T > > init)
-    : HashTable(init.begin(), init.end())
-  {}
-
-  template< class Key, class T, class Hash, class Eq >
-  HashTable< Key, T, Hash, Eq >::~HashTable() noexcept
+  HashTable< Key, T, Hash, Eq >::HashTable(std::initializer_list< std::pair< Key, T > > init) : capacity_(16), size_(0), max_load_factor_(0.75f)
   {
-    delete[] slots_;
-  }
-
-  template< class Key, class T, class Hash, class Eq >
-  HashTable< Key, T, Hash, Eq >::HashTable(const HashTable& rhs)
-    : HashTable(rhs.capacity_)
-  {
-    for (size_t i = 0; i < capacity_; ++i)
-    {
-      if (rhs.slots_[i].occupied && !rhs.slots_[i].deleted)
-      {
-        slots_[i] = rhs.slots_[i];
-      }
-    }
-
-    size_ = rhs.size_;
-  }
-
-  template< class Key, class T, class Hash, class Eq >
-  HashTable< Key, T, Hash, Eq >::HashTable(HashTable&& rhs) noexcept
-    : slots_(rhs.slots_),
-      capacity_(rhs.capacity_),
-      size_(rhs.size_)
-  {
-    rhs.slots_ = nullptr;
-    rhs.capacity_ = 0;
-    rhs.size_ = 0;
+    slots_.resize(capacity_);
+    insert(init.begin(), init.end());
   }
 
   template< class Key, class T, class Hash, class Eq >
@@ -123,11 +117,12 @@ namespace shramko
   {
     if (this != &rhs)
     {
-      HashTable temp(rhs);
-
-      swap(temp);
+      clear();
+      capacity_ = rhs.capacity_;
+      max_load_factor_ = rhs.max_load_factor_;
+      slots_.resize(capacity_);
+      insert(rhs.begin(), rhs.end());
     }
-
     return *this;
   }
 
@@ -136,107 +131,118 @@ namespace shramko
   {
     if (this != &rhs)
     {
-      delete[] slots_;
-
-      slots_ = rhs.slots_;
+      clear();
+      slots_ = std::move(rhs.slots_);
       capacity_ = rhs.capacity_;
       size_ = rhs.size_;
-
-      rhs.slots_ = nullptr;
+      max_load_factor_ = rhs.max_load_factor_;
       rhs.capacity_ = 0;
       rhs.size_ = 0;
     }
-
     return *this;
   }
 
   template< class Key, class T, class Hash, class Eq >
-  HashIterator< Key, T, Hash, Eq > HashTable< Key, T, Hash, Eq >::begin() noexcept
+  typename HashTable< Key, T, Hash, Eq >::iterator HashTable< Key, T, Hash, Eq >::begin() noexcept
   {
-    return iterator(slots_, capacity_, 0);
+    return iterator(slots_.data(), capacity_, 0);
   }
 
   template< class Key, class T, class Hash, class Eq >
-  HashConstIterator< Key, T, Hash, Eq > HashTable< Key, T, Hash, Eq >::cbegin() const noexcept
+  typename HashTable< Key, T, Hash, Eq >::cIterator HashTable< Key, T, Hash, Eq >::cbegin() const noexcept
   {
-    return cIterator(slots_, capacity_, 0);
+    return cIterator(slots_.data(), capacity_, 0);
   }
 
   template< class Key, class T, class Hash, class Eq >
-  HashIterator< Key, T, Hash, Eq > HashTable< Key, T, Hash, Eq >::end() noexcept
+  typename HashTable< Key, T, Hash, Eq >::iterator HashTable< Key, T, Hash, Eq >::end() noexcept
   {
-    return iterator(slots_, capacity_, capacity_);
+    return iterator(slots_.data(), capacity_, capacity_);
   }
 
   template< class Key, class T, class Hash, class Eq >
-  HashConstIterator< Key, T, Hash, Eq > HashTable< Key, T, Hash, Eq >::cend() const noexcept
+  typename HashTable< Key, T, Hash, Eq >::cIterator HashTable< Key, T, Hash, Eq >::cend() const noexcept
   {
-    return cIterator(slots_, capacity_, capacity_);
+    return cIterator(slots_.data(), capacity_, capacity_);
   }
 
   template< class Key, class T, class Hash, class Eq >
   T& HashTable< Key, T, Hash, Eq >::at(const Key& key)
   {
     size_t pos = find_position(key);
-
-    if (pos == capacity_)
+    if (pos != capacity_)
     {
-      throw std::out_of_range("Key not found");
+      return slots_[pos].data.second;
     }
-
-    return slots_[pos].data.second;
+    throw std::out_of_range("Key not found");
   }
 
   template< class Key, class T, class Hash, class Eq >
   const T& HashTable< Key, T, Hash, Eq >::at(const Key& key) const
   {
     size_t pos = find_position(key);
-
-    if (pos == capacity_)
+    if (pos != capacity_)
     {
-      throw std::out_of_range("Key not found");
+      return slots_[pos].data.second;
     }
-
-    return slots_[pos].data.second;
+    throw std::out_of_range("Key not found");
   }
 
   template< class Key, class T, class Hash, class Eq >
   T& HashTable< Key, T, Hash, Eq >::operator[](const Key& key)
   {
-    auto p = insert(key, T{});
-    return p.first->second;
+    size_t pos = get_insert_position(key);
+    if (slots_[pos].occupied)
+    {
+      return slots_[pos].data.second;
+    }
+    slots_[pos].data = {key, T{}};
+    slots_[pos].occupied = true;
+    ++size_;
+    if (loadFactor() > max_load_factor_)
+    {
+      rehash(capacity_ * 2);
+    }
+    return slots_[pos].data.second;
   }
 
   template< class Key, class T, class Hash, class Eq >
   T& HashTable< Key, T, Hash, Eq >::operator[](Key&& key)
   {
-    auto p = insert(std::move(key), T{});
-    return p.first->second;
+    size_t pos = get_insert_position(key);
+    if (slots_[pos].occupied)
+    {
+      return slots_[pos].data.second;
+    }
+    slots_[pos].data = {std::move(key), T{}};
+    slots_[pos].occupied = true;
+    ++size_;
+    if (loadFactor() > max_load_factor_)
+    {
+      rehash(capacity_ * 2);
+    }
+    return slots_[pos].data.second;
   }
 
   template< class Key, class T, class Hash, class Eq >
-  HashIterator< Key, T, Hash, Eq > HashTable< Key, T, Hash, Eq >::find(const Key& key) noexcept
+  typename HashTable< Key, T, Hash, Eq >::iterator HashTable< Key, T, Hash, Eq >::find(const Key& key) noexcept
   {
     size_t pos = find_position(key);
-
     if (pos != capacity_)
     {
-      return iterator(slots_, capacity_, pos);
+      return iterator(slots_.data(), capacity_, pos);
     }
-
     return end();
   }
 
   template< class Key, class T, class Hash, class Eq >
-  HashConstIterator< Key, T, Hash, Eq > HashTable< Key, T, Hash, Eq >::find(const Key& key) const noexcept
+  typename HashTable< Key, T, Hash, Eq >::cIterator HashTable< Key, T, Hash, Eq >::find(const Key& key) const noexcept
   {
     size_t pos = find_position(key);
-
     if (pos != capacity_)
     {
-      return cIterator(slots_, capacity_, pos);
+      return cIterator(slots_.data(), capacity_, pos);
     }
-
     return cend();
   }
 
@@ -255,180 +261,28 @@ namespace shramko
   template< class Key, class T, class Hash, class Eq >
   float HashTable< Key, T, Hash, Eq >::loadFactor() const noexcept
   {
-    return static_cast< float >(size_) / static_cast< float >(capacity_);
+    return static_cast<float>(size_) / capacity_;
   }
 
   template< class Key, class T, class Hash, class Eq >
   void HashTable< Key, T, Hash, Eq >::rehash(size_t newCapacity)
   {
-    if (newCapacity < size_)
+    if (newCapacity == 0)
     {
-      return;
+      newCapacity = 1;
     }
-
-    HashTable temp(newCapacity);
-
-    for (auto it = begin(); it != end(); ++it)
-    {
-      temp.insert(std::move(it->first), std::move(it->second));
-    }
-
-    swap(temp);
-  }
-
-  template< class Key, class T, class Hash, class Eq >
-  void HashTable< Key, T, Hash, Eq >::clear() noexcept
-  {
-    for (size_t i = 0; i < capacity_; ++i)
-    {
-      slots_[i].occupied = false;
-      slots_[i].deleted = false;
-    }
-
+    std::vector< HashNode< Key, T > > newSlots(newCapacity);
+    std::swap(slots_, newSlots);
+    capacity_ = newCapacity;
+    size_t oldSize = size_;
     size_ = 0;
-  }
-
-  template< class Key, class T, class Hash, class Eq >
-  size_t HashTable< Key, T, Hash, Eq >::compute_hash(const Key& key) const noexcept
-  {
-    return Hash{}(key) % capacity_;
-  }
-
-  template< class Key, class T, class Hash, class Eq >
-  size_t HashTable< Key, T, Hash, Eq >::find_position(const Key& key) const noexcept
-  {
-    size_t h = compute_hash(key);
-
-    for (size_t i = 0; i < capacity_; ++i)
+    for (size_t i = 0; i < oldCapacity; ++i)
     {
-      size_t pos = (h + i * i) % capacity_;
-
-      if (slots_[pos].occupied && !slots_[pos].deleted && Eq{}(slots_[pos].data.first, key))
+      if (oldSlots[i].occupied && !oldSlots[i].deleted)
       {
-        return pos;
-      }
-
-      if (!slots_[pos].occupied && !slots_[pos].deleted)
-      {
-        return capacity_;
+        operator[](oldSlots[i].data.first) = oldSlots[i].data.second;
       }
     }
-
-    return capacity_;
-  }
-
-  template< class Key, class T, class Hash, class Eq >
-  size_t HashTable< Key, T, Hash, Eq >::get_insert_position(const Key& key) const noexcept
-  {
-    size_t h = compute_hash(key);
-
-    for (size_t i = 0; i < capacity_; ++i)
-    {
-      size_t pos = (h + i * i) % capacity_;
-
-      if (!slots_[pos].occupied)
-      {
-        return pos;
-      }
-    }
-
-    return capacity_;
-  }
-
-  template< class Key, class T, class Hash, class Eq >
-  std::pair< HashIterator< Key, T, Hash, Eq >, bool > HashTable< Key, T, Hash, Eq >::insert(const Key& key, const T& value)
-  {
-    if (loadFactor() >= max_load_factor_)
-    {
-      rehash(capacity_ * 2);
-    }
-
-    size_t found = find_position(key);
-
-    if (found != capacity_)
-    {
-      return {iterator(slots_, capacity_, found), false};
-    }
-
-    size_t pos = get_insert_position(key);
-
-    if (pos == capacity_)
-    {
-      throw std::runtime_error("ERROR: hash table is full");
-    }
-
-    slots_[pos].data = {key, value};
-    slots_[pos].occupied = true;
-    slots_[pos].deleted = false;
-    size_++;
-
-    return {iterator(slots_, capacity_, pos), true};
-  }
-
-  template< class Key, class T, class Hash, class Eq >
-  template< class InputIt >
-  void HashTable< Key, T, Hash, Eq >::insert(InputIt first, InputIt last)
-  {
-    for (auto it = first; it != last; ++it)
-    {
-      insert(it->first, it->second);
-    }
-  }
-
-  template< class Key, class T, class Hash, class Eq >
-  HashIterator< Key, T, Hash, Eq > HashTable< Key, T, Hash, Eq >::erase(iterator pos)
-  {
-    size_t index = pos.current_;
-
-    slots_[index].occupied = false;
-    slots_[index].deleted = true;
-    size_--;
-
-    return iterator(slots_, capacity_, index);
-  }
-
-  template< class Key, class T, class Hash, class Eq >
-  HashIterator< Key, T, Hash, Eq > HashTable< Key, T, Hash, Eq >::erase(cIterator pos)
-  {
-    return erase(iterator(slots_, capacity_, pos.current_));
-  }
-
-  template< class Key, class T, class Hash, class Eq >
-  template< class InputIt >
-  HashIterator< Key, T, Hash, Eq > HashTable< Key, T, Hash, Eq >::erase(InputIt first, InputIt last)
-  {
-    iterator result;
-
-    for (auto it = first; it != last;)
-    {
-      result = erase(it++);
-    }
-
-    return result;
-  }
-
-  template< class Key, class T, class Hash, class Eq >
-  size_t HashTable< Key, T, Hash, Eq >::erase(const Key& key)
-  {
-    size_t pos = find_position(key);
-
-    if (pos != capacity_)
-    {
-      slots_[pos].occupied = false;
-      slots_[pos].deleted = true;
-      size_--;
-      return 1;
-    }
-
-    return 0;
-  }
-
-  template< class Key, class T, class Hash, class Eq >
-  void HashTable< Key, T, Hash, Eq >::swap(HashTable& rhs) noexcept
-  {
-    std::swap(slots_, rhs.slots_);
-    std::swap(capacity_, rhs.capacity_);
-    std::swap(size_, rhs.size_);
   }
 
   template< class Key, class T, class Hash, class Eq >
@@ -440,15 +294,141 @@ namespace shramko
   template< class Key, class T, class Hash, class Eq >
   void HashTable< Key, T, Hash, Eq >::max_load_factor(float ml)
   {
-    if (ml > 0.0f && ml <= 1.0f)
+    if (ml <= 0.0f || ml > 1.0f)
     {
-      max_load_factor_ = ml;
-
-      if (loadFactor() > max_load_factor_)
-      {
-        rehash(capacity_ * 2);
-      }
+      throw std::invalid_argument("Max load factor must be > 0 and <= 1");
     }
+    max_load_factor_ = ml;
+    if (loadFactor() > ml)
+    {
+      rehash(capacity_ * 2);
+    }
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  std::pair< typename HashTable< Key, T, Hash, Eq >::iterator, bool > HashTable< Key, T, Hash, Eq >::insert(const Key& key, const T& value)
+  {
+    size_t pos = get_insert_position(key);
+    if (slots_[pos].occupied)
+    {
+      return {iterator(slots_.data(), capacity_, pos), false};
+    }
+    slots_[pos].data = {key, value};
+    slots_[pos].occupied = true;
+    ++size_;
+    if (loadFactor() > max_load_factor_)
+    {
+      rehash(capacity_ * 2);
+    }
+    return {iterator(slots_.data(), capacity_, pos), true};
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  template< class InputIt >
+  void HashTable< Key, T, Hash, Eq >::insert(InputIt first, InputIt last)
+  {
+    for (; first != last; ++first)
+    {
+      insert(first->first, first->second);
+    }
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  typename HashTable< Key, T, Hash, Eq >::iterator HashTable< Key, T, Hash, Eq >::erase(iterator pos)
+  {
+    size_t index = pos.current_;
+    if (index < capacity_ && slots_[index].occupied && !slots_[index].deleted)
+    {
+      slots_[index].occupied = false;
+      slots_[index].deleted = true;
+      --size_;
+    }
+    return iterator(slots_.data(), capacity_, index);
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  typename HashTable< Key, T, Hash, Eq >::iterator HashTable< Key, T, Hash, Eq >::erase(cIterator pos)
+  {
+    return erase(iterator(slots_.data(), capacity_, pos.current_));
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  template< class InputIt >
+  typename HashTable< Key, T, Hash, Eq >::iterator HashTable< Key, T, Hash, Eq >::erase(InputIt first, InputIt last)
+  {
+    iterator result;
+    for (auto it = first; it != last; )
+    {
+      result = erase(it++);
+    }
+    return result;
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  size_t HashTable< Key, T, Hash, Eq >::erase(const Key& key)
+  {
+    size_t pos = find_position(key);
+    if (pos != capacity_)
+    {
+      slots_[pos].occupied = false;
+      slots_[pos].deleted = true;
+      --size_;
+      return 1;
+    }
+    return 0;
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  void HashTable< Key, T, Hash, Eq >::swap(HashTable& rhs) noexcept
+  {
+    std::swap(slots_, rhs.slots_);
+    std::swap(capacity_, rhs.capacity_);
+    std::swap(size_, rhs.size_);
+    std::swap(max_load_factor_, rhs.max_load_factor_);
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  void HashTable< Key, T, Hash, Eq >::clear() noexcept
+  {
+    for (size_t i = 0; i < capacity_; ++i)
+    {
+      slots_[i].occupied = false;
+      slots_[i].deleted = false;
+    }
+    size_ = 0;
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  size_t HashTable< Key, T, Hash, Eq >::find_position(const Key& key) const noexcept
+  {
+    size_t pos = Hash{}(key) % capacity_;
+    while (true)
+    {
+      if (slots_[pos].occupied && !slots_[pos].deleted && Eq{}(slots_[pos].data.first, key))
+      {
+        return pos;
+      }
+      if (!slots_[pos].occupied && !slots_[pos].deleted)
+      {
+        return capacity_;
+      }
+      pos = (pos + 1) % capacity_;
+    }
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  size_t HashTable< Key, T, Hash, Eq >::get_insert_position(const Key& key) const noexcept
+  {
+    size_t pos = Hash{}(key) % capacity_;
+    while (slots_[pos].occupied)
+    {
+      if (!slots_[pos].deleted && Eq{}(slots_[pos].data.first, key))
+      {
+        return pos;
+      }
+      pos = (pos + 1) % capacity_;
+    }
+    return pos;
   }
 }
 

@@ -11,12 +11,6 @@ namespace shramko
     std::pair< Key, T > data;
     bool occupied = false;
     bool deleted = false;
-
-    HashNode() = default;
-    HashNode(const Key& k, const T& v):
-      data(k, v),
-      occupied(true)
-    {}
   };
 }
 
