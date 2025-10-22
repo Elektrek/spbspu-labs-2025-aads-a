@@ -170,7 +170,7 @@ const T& shramko::ForwardList< T >::getFront() const
   {
     throw std::out_of_range("ForwardList is empty");
   }
-  return headNode_->data;
+  return headNode_->dataValue;
 }
 
 template< typename T >
@@ -180,7 +180,7 @@ const T& shramko::ForwardList< T >::getBack() const
   {
     throw std::out_of_range("ForwardList is empty");
   }
-  return tailNode_->data;
+  return tailNode_->dataValue;
 }
 
 template< typename T >
@@ -190,7 +190,7 @@ T& shramko::ForwardList< T >::getFront()
   {
     throw std::out_of_range("ForwardList is empty");
   }
-  return headNode_->data;
+  return headNode_->dataValue;
 }
 
 template< typename T >
@@ -200,7 +200,7 @@ T& shramko::ForwardList< T >::getBack()
   {
     throw std::out_of_range("ForwardList is empty");
   }
-  return tailNode_->data;
+  return tailNode_->dataValue;
 }
 
 template< typename T >

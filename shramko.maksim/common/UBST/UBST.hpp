@@ -6,7 +6,7 @@
 #include <stack>
 #include <queue>
 #include <new>
-#include <utility>  // for std::swap
+#include <utility>
 #include "node.hpp"
 #include "constiterator.hpp"
 
@@ -196,7 +196,7 @@ namespace shramko
   template < typename Key, typename Value, typename Compare >
   typename UBstTree< Key, Value, Compare >::const_iterator UBstTree< Key, Value, Compare >::cbegin() const noexcept
   {
-    return const_iterator(root_);
+    return const_iterator(minNode(root_));
   }
 
   template < typename Key, typename Value, typename Compare >
@@ -309,7 +309,8 @@ namespace shramko
   {
     if (!node)
     {
-      node = new Node< Key, Value >{std::make_pair(key, value), parent, nullptr, nullptr};
+      node = new Node< Key, Value >(key, value);
+      node->parent = parent;
       ++size;
       return node;
     }
@@ -335,14 +336,14 @@ namespace shramko
     {
       try
       {
-        node = new Node< Key, Value >{otherNode->data, parent, nullptr, nullptr};
+        node = new Node< Key, Value >(otherNode->data.first, otherNode->data.second);
+        node->parent = parent;
         copyTree(node->left, otherNode->left, node);
         copyTree(node->right, otherNode->right, node);
       }
       catch (std::bad_alloc&)
       {
-        clearNode(node->left);
-        delete node;
+        clearNode(node);
         node = nullptr;
         throw;
       }
@@ -428,7 +429,7 @@ namespace shramko
     else
     {
       Node< Key, Value >* succ = minNode(toDel->right);
-      std::swap(toDel->data, succ->data);  // Swap вместо assignment
+      std::swap(toDel->data, succ->data);
       Node< Key, Value >* sparent = succ->parent;
       if (sparent->left == succ)
       {
