@@ -1,35 +1,12 @@
 #include "commands.hpp"
-#include <ostream>
-#include <stdexcept>
-#include "dictionary_manager.hpp"
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <string>
+#include <sstream>
 #include <FwdList/FwdList.hpp>
+#include <UBST/UBST.hpp>
 #include <HashTable/hash_table.hpp>
-
-namespace shramko
-{
-  bool compareByFreqDesc(const std::pair< std::string, int >& a, const std::pair< std::string, int >& b)
-  {
-    if (a.second != b.second)
-    {
-      return a.second > b.second;
-    }
-    return a.first < b.first;
-  }
-
-  bool compareByFreqAsc(const std::pair< std::string, int >& a, const std::pair< std::string, int >& b)
-  {
-    if (a.second != b.second)
-    {
-      return a.second < b.second;
-    }
-    return a.first < b.first;
-  }
-
-  bool compareByKey(const std::pair< std::string, int >& a, const std::pair< std::string, int >& b)
-  {
-    return a.first < b.first;
-  }
-}
 
 void create(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
 {
@@ -143,14 +120,20 @@ void search(const shramko::ForwardList< std::string >& args, DictionaryManager& 
   std::string dict_name = *it;
   ++it;
   std::string word = *it;
-  int freq = 0;
-  if (dm.getFreq(dict_name, word, freq))
+  const auto* dict = dm.getDict(dict_name);
+  if (!dict)
   {
-    os << "FOUND: freq=" << freq << "\n";
+    os << "DICT NOT FOUND\n";
+    return;
+  }
+  auto dit = dict->find(word);
+  if (dit == dict->cend())
+  {
+    os << "NOT FOUND\n";
   }
   else
   {
-    os << "NOT FOUND\n";
+    os << "FOUND: freq=" << dit->second << "\n";
   }
 }
 
@@ -165,6 +148,12 @@ void delete_(const shramko::ForwardList< std::string >& args, DictionaryManager&
   std::string dict_name = *it;
   ++it;
   std::string word = *it;
+  const auto* dict = dm.getDict(dict_name);
+  if (!dict)
+  {
+    os << "DICT NOT FOUND\n";
+    return;
+  }
   if (dm.removeWord(dict_name, word))
   {
     os << "OK: Deleted '" << word << "'\n";
@@ -190,12 +179,23 @@ void dump(const shramko::ForwardList< std::string >& args, DictionaryManager& dm
     os << "DICT NOT FOUND\n";
     return;
   }
-  os << "dump: ";
-  for (auto dictIt = dict->cbegin(); dictIt != dict->cend(); ++dictIt)
+  if (dict->empty())
   {
-    os << dictIt->first << ":" << dictIt->second << " ";
+    os << "EMPTY DICT\n";
+    return;
   }
-  os << "\n";
+  os << "dump: ";
+  bool first = true;
+  for (auto dit = dict->cbegin(); dit != dict->cend(); ++dit)
+  {
+    if (!first)
+    {
+      os << " ";
+    }
+    os << dit->first << ":" << dit->second;
+    first = false;
+  }
+  os << " \n";
 }
 
 void top(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
@@ -208,18 +208,13 @@ void top(const shramko::ForwardList< std::string >& args, DictionaryManager& dm,
   auto it = args.begin();
   std::string dict_name = *it;
   ++it;
-  std::string n_str = *it;
-  int n = 0;
+  std::string nstr = *it;
+  size_t N;
   try
   {
-    n = std::stoi(n_str);
+    N = std::stoul(nstr);
   }
   catch (...)
-  {
-    os << "INVALID COMMAND\n";
-    return;
-  }
-  if (n <= 0)
   {
     os << "INVALID COMMAND\n";
     return;
@@ -232,23 +227,33 @@ void top(const shramko::ForwardList< std::string >& args, DictionaryManager& dm,
   }
   if (dict->empty())
   {
-    os << "EMPTY\n";
+    os << "EMPTY DICT\n";
     return;
   }
-  shramko::ForwardList<std::pair<std::string, int> > items;
-  for (auto dictIt = dict->cbegin(); dictIt != dict->cend(); ++dictIt)
+  std::vector<std::pair<std::string, int>> vec;
+  vec.reserve(dict->size());
+  for (auto dit = dict->cbegin(); dit != dict->cend(); ++dit)
   {
-    items.addToBack(*dictIt);
+    vec.emplace_back(dit->first, dit->second);
   }
-  items.sort(shramko::compareByFreqDesc);
-  os << "top " << n << ": ";
-  size_t count = 0;
-  auto itemIt = items.begin();
-  while (itemIt != items.end() && count < static_cast<size_t>(n))
+  std::sort(vec.begin(), vec.end(), [](const auto& a, const auto& b)
   {
-    os << itemIt->first << ":" << itemIt->second << " ";
-    ++itemIt;
-    ++count;
+    if (a.second != b.second)
+    {
+      return a.second > b.second;
+    }
+    return a.first < b.first;
+  });
+  os << "top " << N << ": ";
+  size_t cnt = 0;
+  for (const auto& p : vec)
+  {
+    if (cnt >= N)
+    {
+      break;
+    }
+    os << p.first << ":" << p.second << " ";
+    ++cnt;
   }
   os << "\n";
 }
@@ -263,18 +268,13 @@ void bot(const shramko::ForwardList< std::string >& args, DictionaryManager& dm,
   auto it = args.begin();
   std::string dict_name = *it;
   ++it;
-  std::string n_str = *it;
-  int n = 0;
+  std::string nstr = *it;
+  size_t N;
   try
   {
-    n = std::stoi(n_str);
+    N = std::stoul(nstr);
   }
   catch (...)
-  {
-    os << "INVALID COMMAND\n";
-    return;
-  }
-  if (n <= 0)
   {
     os << "INVALID COMMAND\n";
     return;
@@ -287,23 +287,33 @@ void bot(const shramko::ForwardList< std::string >& args, DictionaryManager& dm,
   }
   if (dict->empty())
   {
-    os << "EMPTY\n";
+    os << "EMPTY DICT\n";
     return;
   }
-  shramko::ForwardList<std::pair<std::string, int> > items;
-  for (auto dictIt = dict->cbegin(); dictIt != dict->cend(); ++dictIt)
+  std::vector<std::pair<std::string, int>> vec;
+  vec.reserve(dict->size());
+  for (auto dit = dict->cbegin(); dit != dict->cend(); ++dit)
   {
-    items.addToBack(*dictIt);
+    vec.emplace_back(dit->first, dit->second);
   }
-  items.sort(shramko::compareByFreqAsc);
-  os << "bot " << n << ": ";
-  size_t count = 0;
-  auto itemIt = items.begin();
-  while (itemIt != items.end() && count < static_cast<size_t>(n))
+  std::sort(vec.begin(), vec.end(), [](const auto& a, const auto& b)
   {
-    os << itemIt->first << ":" << itemIt->second << " ";
-    ++itemIt;
-    ++count;
+    if (a.second != b.second)
+    {
+      return a.second < b.second;
+    }
+    return a.first < b.first;
+  });
+  os << "bot " << N << ": ";
+  size_t cnt = 0;
+  for (const auto& p : vec)
+  {
+    if (cnt >= N)
+    {
+      break;
+    }
+    os << p.first << ":" << p.second << " ";
+    ++cnt;
   }
   os << "\n";
 }
@@ -318,11 +328,11 @@ void minfreq(const shramko::ForwardList< std::string >& args, DictionaryManager&
   auto it = args.begin();
   std::string dict_name = *it;
   ++it;
-  std::string min_str = *it;
-  int min_val = 0;
+  std::string minstr = *it;
+  int minf;
   try
   {
-    min_val = std::stoi(min_str);
+    minf = std::stoi(minstr);
   }
   catch (...)
   {
@@ -335,21 +345,21 @@ void minfreq(const shramko::ForwardList< std::string >& args, DictionaryManager&
     os << "DICT NOT FOUND\n";
     return;
   }
-  shramko::ForwardList<std::pair<std::string, int> > items;
-  for (auto dictIt = dict->cbegin(); dictIt != dict->cend(); ++dictIt)
+  os << "minfreq " << minf << ": ";
+  bool first = true;
+  for (auto dit = dict->cbegin(); dit != dict->cend(); ++dit)
   {
-    if (dictIt->second >= min_val)
+    if (dit->second >= minf)
     {
-      items.addToBack(*dictIt);
+      if (!first)
+      {
+        os << " ";
+      }
+      os << dit->first << ":" << dit->second;
+      first = false;
     }
   }
-  items.sort(shramko::compareByKey);
-  os << "minfreq " << min_val << ": ";
-  for (auto itemIt = items.begin(); itemIt != items.end(); ++itemIt)
-  {
-    os << itemIt->first << ":" << itemIt->second << " ";
-  }
-  os << "\n";
+  os << " \n";
 }
 
 void maxfreq(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
@@ -362,11 +372,11 @@ void maxfreq(const shramko::ForwardList< std::string >& args, DictionaryManager&
   auto it = args.begin();
   std::string dict_name = *it;
   ++it;
-  std::string max_str = *it;
-  int max_val = 0;
+  std::string maxstr = *it;
+  int maxf;
   try
   {
-    max_val = std::stoi(max_str);
+    maxf = std::stoi(maxstr);
   }
   catch (...)
   {
@@ -379,21 +389,21 @@ void maxfreq(const shramko::ForwardList< std::string >& args, DictionaryManager&
     os << "DICT NOT FOUND\n";
     return;
   }
-  shramko::ForwardList<std::pair<std::string, int> > items;
-  for (auto dictIt = dict->cbegin(); dictIt != dict->cend(); ++dictIt)
+  os << "maxfreq " << maxf << ": ";
+  bool first = true;
+  for (auto dit = dict->cbegin(); dit != dict->cend(); ++dit)
   {
-    if (dictIt->second > max_val)
+    if (dit->second > maxf)
     {
-      items.addToBack(*dictIt);
+      if (!first)
+      {
+        os << " ";
+      }
+      os << dit->first << ":" << dit->second;
+      first = false;
     }
   }
-  items.sort(shramko::compareByKey);
-  os << "maxfreq " << max_val << ": ";
-  for (auto itemIt = items.begin(); itemIt != items.end(); ++itemIt)
-  {
-    os << itemIt->first << ":" << itemIt->second << " ";
-  }
-  os << "\n";
+  os << " \n";
 }
 
 void median(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os)
@@ -416,63 +426,39 @@ void median(const shramko::ForwardList< std::string >& args, DictionaryManager& 
     os << "EMPTY DICT\n";
     return;
   }
-  shramko::ForwardList< int > freqs;
-  for (auto dictIt = dict->cbegin(); dictIt != dict->cend(); ++dictIt)
+  std::vector<int> freqs;
+  freqs.reserve(dict->size());
+  for (auto dit = dict->cbegin(); dit != dict->cend(); ++dit)
   {
-    freqs.addToBack(dictIt->second);
+    freqs.push_back(dit->second);
   }
-  freqs.sort();
-  size_t sz = freqs.getSize();
+  std::sort(freqs.begin(), freqs.end());
+  size_t sz = freqs.size();
   double med = 0.0;
   if (sz % 2 == 1)
   {
-    auto freqIt = freqs.begin();
-    for (size_t i = 0; i < sz / 2; ++i)
-    {
-      ++freqIt;
-    }
-    med = *freqIt;
+    med = freqs[sz / 2];
   }
   else
   {
-    auto it1 = freqs.begin();
-    for (size_t i = 0; i < sz / 2 - 1; ++i)
-    {
-      ++it1;
-    }
-    auto it2 = it1;
-    ++it2;
-    med = (*it1 + *it2) / 2.0;
+    med = (static_cast<double>(freqs[sz / 2 - 1]) + freqs[sz / 2]) / 2.0;
   }
   os << "median: " << med << "\n";
 }
 
-struct OneArgCaller
-{
-  void (*func)(const shramko::ForwardList< std::string >&, DictionaryManager&, std::ostream&);
-  OneArgCaller(void (*f)(const shramko::ForwardList< std::string >&, DictionaryManager&, std::ostream&)):
-    func(f)
-  {}
-  void operator()(const shramko::ForwardList< std::string >& args, DictionaryManager& dm, std::ostream& os) const
-  {
-    func(args, dm, os);
-  }
-};
-
 shramko::HashTable< std::string, CommandFunction > createCommandMap()
 {
   shramko::HashTable< std::string, CommandFunction > commandMap;
-  commandMap.insert("create", OneArgCaller(create));
-  commandMap.insert("add", OneArgCaller(add));
-  commandMap.insert("increment", OneArgCaller(increment));
-  commandMap.insert("search", OneArgCaller(search));
-  commandMap.insert("delete", OneArgCaller(delete_));
-  commandMap.insert("dump", OneArgCaller(dump));
-  commandMap.insert("top", OneArgCaller(top));
-  commandMap.insert("bot", OneArgCaller(bot));
-  commandMap.insert("minfreq", OneArgCaller(minfreq));
-  commandMap.insert("maxfreq", OneArgCaller(maxfreq));
-  commandMap.insert("median", OneArgCaller(median));
-
+  commandMap.insert("create", create);
+  commandMap.insert("add", add);
+  commandMap.insert("increment", increment);
+  commandMap.insert("search", search);
+  commandMap.insert("delete", delete_);
+  commandMap.insert("dump", dump);
+  commandMap.insert("top", top);
+  commandMap.insert("bot", bot);
+  commandMap.insert("minfreq", minfreq);
+  commandMap.insert("maxfreq", maxfreq);
+  commandMap.insert("median", median);
   return commandMap;
 }

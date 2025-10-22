@@ -1,479 +1,455 @@
 #ifndef HASH_TABLE_HPP
 #define HASH_TABLE_HPP
 
-#include <cstddef>
-#include <functional>
-#include <stdexcept>
-#include <utility>
-#include <vector>
-#include <iterator>
+#include "iterator.hpp"
+#include "node.hpp"
 
-namespace shramko {
+namespace shramko
+{
+  template< class Key, class T, class Hash = std::hash< Key >, class Eq = std::equal_to< Key > >
+  class HashTable
+  {
+  public:
+    using cIterator = HashConstIterator< Key, T, Hash, Eq >;
+    using iterator = HashIterator< Key, T, Hash, Eq >;
 
-template <typename Key, typename T, typename Hash = std::hash<Key>, typename Eq = std::equal_to<Key>>
-class HashTable {
-public:
-    using key_type = Key;
-    using mapped_type = T;
-    using value_type = std::pair<const Key, T>;
-    using size_type = std::size_t;
-    using hasher = Hash;
-    using key_equal = Eq;
+    ~HashTable() noexcept;
+    HashTable();
+    HashTable(size_t capacity);
+    HashTable(const HashTable& rhs);
+    HashTable(HashTable&& rhs) noexcept;
+    template< class InputIt >
+    HashTable(InputIt firstIt, InputIt lastIt);
+    HashTable(std::initializer_list< std::pair< Key, T > > init);
+    HashTable& operator=(const HashTable& rhs);
+    HashTable& operator=(HashTable&& rhs) noexcept;
 
-    class iterator;
-    class cIterator;
+    iterator begin() noexcept;
+    cIterator cbegin() const noexcept;
+    iterator end() noexcept;
+    cIterator cend() const noexcept;
+    T& at(const Key& key);
+    const T& at(const Key& key) const;
+    T& operator[](const Key& key);
+    T& operator[](Key&& key);
+    iterator find(const Key& key) noexcept;
+    cIterator find(const Key& key) const noexcept;
+    bool empty() const noexcept;
+    size_t size() const noexcept;
+    float loadFactor() const noexcept;
+    void rehash(size_t newCapacity);
+    float max_load_factor() const noexcept;
+    void max_load_factor(float ml);
+    std::pair< iterator, bool > insert(const Key& key, const T& value);
+    template< class InputIt >
+    void insert(InputIt first, InputIt last);
+    iterator erase(iterator pos);
+    iterator erase(cIterator pos);
+    template< class InputIt >
+    iterator erase(InputIt first, InputIt last);
+    size_t erase(const Key& key);
+    void clear() noexcept;
+    void swap(HashTable& rhs) noexcept;
 
-private:
-    struct Slot {
-        Key key;
-        T data;
-        bool occupied = false;
-        bool deleted = false;
-    };
+  private:
+    Node< Key, T >* slots_;
+    size_t capacity_;
+    size_t size_;
+    float max_load_factor_ = 0.7f;
+    size_t compute_hash(const Key& key) const noexcept;
+    size_t find_position(const Key& key) const noexcept;
+    size_t get_insert_position(const Key& key) const noexcept;
+  };
 
-    std::vector<Slot> slots_;
-    size_type size_ = 0;
-    size_type capacity_ = 0;
-    float max_load_factor_ = 0.75f;
-    Hash hash_;
-    Eq eq_;
+  template< class Key, class T, class Hash, class Eq >
+  HashTable< Key, T, Hash, Eq >::HashTable()
+    : HashTable(10)
+  {}
 
-    size_type hash(const Key& key) const {
-        if (capacity_ == 0) return 0;
-        return hash_(key) % capacity_;
+  template< class Key, class T, class Hash, class Eq >
+  HashTable< Key, T, Hash, Eq >::HashTable(size_t capacity)
+    : slots_(new Node< Key, T >[capacity]{}),
+      capacity_(capacity),
+      size_(0)
+  {}
+
+  template< class Key, class T, class Hash, class Eq >
+  template< class InputIt >
+  HashTable< Key, T, Hash, Eq >::HashTable(InputIt firstIt, InputIt lastIt)
+    : HashTable()
+  {
+    insert(firstIt, lastIt);
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  HashTable< Key, T, Hash, Eq >::HashTable(std::initializer_list< std::pair< Key, T > > init)
+    : HashTable(init.begin(), init.end())
+  {}
+
+  template< class Key, class T, class Hash, class Eq >
+  HashTable< Key, T, Hash, Eq >::~HashTable() noexcept
+  {
+    delete[] slots_;
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  HashTable< Key, T, Hash, Eq >::HashTable(const HashTable& rhs)
+    : HashTable(rhs.capacity_)
+  {
+    for (size_t i = 0; i < capacity_; ++i)
+    {
+      if (rhs.slots_[i].occupied && !rhs.slots_[i].deleted)
+      {
+        slots_[i] = rhs.slots_[i];
+      }
     }
 
-    bool equal(const Key& lhs, const Key& rhs) const {
-        return eq_(lhs, rhs);
+    size_ = rhs.size_;
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  HashTable< Key, T, Hash, Eq >::HashTable(HashTable&& rhs) noexcept
+    : slots_(rhs.slots_),
+      capacity_(rhs.capacity_),
+      size_(rhs.size_)
+  {
+    rhs.slots_ = nullptr;
+    rhs.capacity_ = 0;
+    rhs.size_ = 0;
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  HashTable< Key, T, Hash, Eq >& HashTable< Key, T, Hash, Eq >::operator=(const HashTable& rhs)
+  {
+    if (this != &rhs)
+    {
+      HashTable temp(rhs);
+
+      swap(temp);
     }
 
-    float loadFactor() const {
-        return capacity_ == 0 ? 0.0f : static_cast<float>(size_) / capacity_;
+    return *this;
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  HashTable< Key, T, Hash, Eq >& HashTable< Key, T, Hash, Eq >::operator=(HashTable&& rhs) noexcept
+  {
+    if (this != &rhs)
+    {
+      delete[] slots_;
+
+      slots_ = rhs.slots_;
+      capacity_ = rhs.capacity_;
+      size_ = rhs.size_;
+
+      rhs.slots_ = nullptr;
+      rhs.capacity_ = 0;
+      rhs.size_ = 0;
     }
 
-    void allocate_slots(size_type new_capacity) {
-        capacity_ = new_capacity;
-        slots_.resize(capacity_);
-        for (auto& slot : slots_) {
-            slot.occupied = false;
-            slot.deleted = false;
-        }
+    return *this;
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  HashIterator< Key, T, Hash, Eq > HashTable< Key, T, Hash, Eq >::begin() noexcept
+  {
+    return iterator(slots_, capacity_, 0);
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  HashConstIterator< Key, T, Hash, Eq > HashTable< Key, T, Hash, Eq >::cbegin() const noexcept
+  {
+    return cIterator(slots_, capacity_, 0);
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  HashIterator< Key, T, Hash, Eq > HashTable< Key, T, Hash, Eq >::end() noexcept
+  {
+    return iterator(slots_, capacity_, capacity_);
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  HashConstIterator< Key, T, Hash, Eq > HashTable< Key, T, Hash, Eq >::cend() const noexcept
+  {
+    return cIterator(slots_, capacity_, capacity_);
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  T& HashTable< Key, T, Hash, Eq >::at(const Key& key)
+  {
+    size_t pos = find_position(key);
+
+    if (pos == capacity_)
+    {
+      throw std::out_of_range("Key not found");
     }
 
-    void rehash(size_type new_capacity) {
-        if (new_capacity <= size_) new_capacity = size_ * 2 + 1;
-        std::vector<Slot> old_slots = std::move(slots_);
-        size_type old_capacity = capacity_;
-        allocate_slots(new_capacity);
-        size_ = 0;
-        for (size_type i = 0; i < old_capacity; ++i) {
-            if (old_slots[i].occupied && !old_slots[i].deleted) {
-                insert({old_slots[i].key, old_slots[i].data});
-            }
-        }
+    return slots_[pos].data.second;
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  const T& HashTable< Key, T, Hash, Eq >::at(const Key& key) const
+  {
+    size_t pos = find_position(key);
+
+    if (pos == capacity_)
+    {
+      throw std::out_of_range("Key not found");
     }
 
-public:
-    HashTable() : HashTable(16) {}
+    return slots_[pos].data.second;
+  }
 
-    explicit HashTable(size_type bucket_count)
-        : max_load_factor_(0.75f) {
-        if (bucket_count == 0) {
-            throw std::invalid_argument("Bucket count must be positive");
-        }
-        allocate_slots(bucket_count);
+  template< class Key, class T, class Hash, class Eq >
+  T& HashTable< Key, T, Hash, Eq >::operator[](const Key& key)
+  {
+    auto p = insert(key, T{});
+    return p.first->second;
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  T& HashTable< Key, T, Hash, Eq >::operator[](Key&& key)
+  {
+    auto p = insert(std::move(key), T{});
+    return p.first->second;
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  HashIterator< Key, T, Hash, Eq > HashTable< Key, T, Hash, Eq >::find(const Key& key) noexcept
+  {
+    size_t pos = find_position(key);
+
+    if (pos != capacity_)
+    {
+      return iterator(slots_, capacity_, pos);
     }
 
-    HashTable(const HashTable& rhs)
-        : capacity_(rhs.capacity_), max_load_factor_(rhs.max_load_factor_), hash_(rhs.hash_), eq_(rhs.eq_) {
-        allocate_slots(capacity_);
-        for (size_type i = 0; i < capacity_; ++i) {
-            if (rhs.slots_[i].occupied && !rhs.slots_[i].deleted) {
-                slots_[i].key = rhs.slots_[i].key;
-                slots_[i].data = rhs.slots_[i].data;
-                slots_[i].occupied = true;
-                slots_[i].deleted = false;
-                ++size_;
-            }
-        }
+    return end();
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  HashConstIterator< Key, T, Hash, Eq > HashTable< Key, T, Hash, Eq >::find(const Key& key) const noexcept
+  {
+    size_t pos = find_position(key);
+
+    if (pos != capacity_)
+    {
+      return cIterator(slots_, capacity_, pos);
     }
 
-    HashTable(HashTable&& rhs) noexcept
-        : slots_(std::move(rhs.slots_)), size_(rhs.size_), capacity_(rhs.capacity_),
-          max_load_factor_(rhs.max_load_factor_), hash_(std::move(rhs.hash_)), eq_(std::move(rhs.eq_)) {
-        rhs.size_ = 0;
-        rhs.capacity_ = 0;
+    return cend();
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  bool HashTable< Key, T, Hash, Eq >::empty() const noexcept
+  {
+    return size_ == 0;
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  size_t HashTable< Key, T, Hash, Eq >::size() const noexcept
+  {
+    return size_;
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  float HashTable< Key, T, Hash, Eq >::loadFactor() const noexcept
+  {
+    return static_cast< float >(size_) / static_cast< float >(capacity_);
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  void HashTable< Key, T, Hash, Eq >::rehash(size_t newCapacity)
+  {
+    if (newCapacity < size_)
+    {
+      return;
     }
 
-    ~HashTable() = default;
+    HashTable temp(newCapacity);
 
-    HashTable& operator=(const HashTable& rhs) {
-        if (this == &rhs) return *this;
-        HashTable tmp(rhs);
-        swap(tmp);
-        return *this;
+    for (auto it = begin(); it != end(); ++it)
+    {
+      temp.insert(std::move(it->first), std::move(it->second));
     }
 
-    HashTable& operator=(HashTable&& rhs) noexcept {
-        if (this == &rhs) return *this;
-        clear();
-        slots_ = std::move(rhs.slots_);
-        size_ = rhs.size_;
-        capacity_ = rhs.capacity_;
-        max_load_factor_ = rhs.max_load_factor_;
-        hash_ = std::move(rhs.hash_);
-        eq_ = std::move(rhs.eq_);
-        rhs.size_ = 0;
-        rhs.capacity_ = 0;
-        rhs.max_load_factor_ = 0.75f;
-        return *this;
+    swap(temp);
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  void HashTable< Key, T, Hash, Eq >::clear() noexcept
+  {
+    for (size_t i = 0; i < capacity_; ++i)
+    {
+      slots_[i].occupied = false;
+      slots_[i].deleted = false;
     }
 
-    void swap(HashTable& other) noexcept {
-        std::swap(slots_, other.slots_);
-        std::swap(size_, other.size_);
-        std::swap(capacity_, other.capacity_);
-        std::swap(max_load_factor_, other.max_load_factor_);
-        std::swap(hash_, other.hash_);
-        std::swap(eq_, other.eq_);
+    size_ = 0;
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  size_t HashTable< Key, T, Hash, Eq >::compute_hash(const Key& key) const noexcept
+  {
+    return Hash{}(key) % capacity_;
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  size_t HashTable< Key, T, Hash, Eq >::find_position(const Key& key) const noexcept
+  {
+    size_t h = compute_hash(key);
+
+    for (size_t i = 0; i < capacity_; ++i)
+    {
+      size_t pos = (h + i * i) % capacity_;
+
+      if (slots_[pos].occupied && !slots_[pos].deleted && Eq{}(slots_[pos].data.first, key))
+      {
+        return pos;
+      }
+
+      if (!slots_[pos].occupied && !slots_[pos].deleted)
+      {
+        return capacity_;
+      }
     }
 
-    T& operator[](const Key& key) {
-        auto p = insert({key, T{}});
-        return p.first->second;
+    return capacity_;
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  size_t HashTable< Key, T, Hash, Eq >::get_insert_position(const Key& key) const noexcept
+  {
+    size_t h = compute_hash(key);
+
+    for (size_t i = 0; i < capacity_; ++i)
+    {
+      size_t pos = (h + i * i) % capacity_;
+
+      if (!slots_[pos].occupied)
+      {
+        return pos;
+      }
     }
 
-    const T& at(const Key& key) const {
-        auto it = find(key);
-        if (it == end()) {
-            throw std::out_of_range("Key not found");
-        }
-        return it->second;
+    return capacity_;
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  std::pair< HashIterator< Key, T, Hash, Eq >, bool > HashTable< Key, T, Hash, Eq >::insert(const Key& key, const T& value)
+  {
+    if (loadFactor() >= max_load_factor_)
+    {
+      rehash(capacity_ * 2);
     }
 
-    T& at(const Key& key) {
-        auto it = find(key);
-        if (it == end()) {
-            throw std::out_of_range("Key not found");
-        }
-        return it->second;
+    size_t found = find_position(key);
+
+    if (found != capacity_)
+    {
+      return {iterator(slots_, capacity_, found), false};
     }
 
-    std::pair<iterator, bool> insert(const value_type& value) {
-        if (loadFactor() > max_load_factor_) {
-            rehash(capacity_ * 2);
-        }
-        size_type index = hash(value.first);
-        size_type first_deleted = capacity_;
-        for (size_type i = 0; i < capacity_; ++i) {
-            size_type pos = (index + i) % capacity_;
-            if (!slots_[pos].occupied) {
-                size_type insert_pos = (first_deleted != capacity_) ? first_deleted : pos;
-                slots_[insert_pos].key = value.first;
-                slots_[insert_pos].data = value.second;
-                slots_[insert_pos].occupied = true;
-                slots_[insert_pos].deleted = false;
-                ++size_;
-                return {iterator(slots_.data() + insert_pos, slots_.data() + capacity_, *this), true};
-            }
-            if (slots_[pos].deleted && first_deleted == capacity_) {
-                first_deleted = pos;
-            }
-            if (slots_[pos].occupied && !slots_[pos].deleted && equal(slots_[pos].key, value.first)) {
-                return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), false};
-            }
-        }
-        if (first_deleted != capacity_) {
-            size_type pos = first_deleted;
-            slots_[pos].key = value.first;
-            slots_[pos].data = value.second;
-            slots_[pos].occupied = true;
-            slots_[pos].deleted = false;
-            ++size_;
-            return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), true};
-        }
-        throw std::overflow_error("Hash table overflow");
+    size_t pos = get_insert_position(key);
+
+    if (pos == capacity_)
+    {
+      throw std::runtime_error("ERROR: hash table is full");
     }
 
-    std::pair<iterator, bool> insert(value_type&& value) {
-        if (loadFactor() > max_load_factor_) {
-            rehash(capacity_ * 2);
-        }
-        size_type index = hash(value.first);
-        size_type first_deleted = capacity_;
-        for (size_type i = 0; i < capacity_; ++i) {
-            size_type pos = (index + i) % capacity_;
-            if (!slots_[pos].occupied) {
-                size_type insert_pos = (first_deleted != capacity_) ? first_deleted : pos;
-                slots_[insert_pos].key = value.first;
-                slots_[insert_pos].data = std::move(value.second);
-                slots_[insert_pos].occupied = true;
-                slots_[insert_pos].deleted = false;
-                ++size_;
-                return {iterator(slots_.data() + insert_pos, slots_.data() + capacity_, *this), true};
-            }
-            if (slots_[pos].deleted && first_deleted == capacity_) {
-                first_deleted = pos;
-            }
-            if (slots_[pos].occupied && !slots_[pos].deleted && equal(slots_[pos].key, value.first)) {
-                return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), false};
-            }
-        }
-        if (first_deleted != capacity_) {
-            size_type pos = first_deleted;
-            slots_[pos].key = value.first;
-            slots_[pos].data = std::move(value.second);
-            slots_[pos].occupied = true;
-            slots_[pos].deleted = false;
-            ++size_;
-            return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), true};
-        }
-        throw std::overflow_error("Hash table overflow");
+    slots_[pos].data = {key, value};
+    slots_[pos].occupied = true;
+    slots_[pos].deleted = false;
+    size_++;
+
+    return {iterator(slots_, capacity_, pos), true};
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  template< class InputIt >
+  void HashTable< Key, T, Hash, Eq >::insert(InputIt first, InputIt last)
+  {
+    for (auto it = first; it != last; ++it)
+    {
+      insert(it->first, it->second);
+    }
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  HashIterator< Key, T, Hash, Eq > HashTable< Key, T, Hash, Eq >::erase(iterator pos)
+  {
+    size_t index = pos.current_;
+
+    slots_[index].occupied = false;
+    slots_[index].deleted = true;
+    size_--;
+
+    return iterator(slots_, capacity_, index);
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  HashIterator< Key, T, Hash, Eq > HashTable< Key, T, Hash, Eq >::erase(cIterator pos)
+  {
+    return erase(iterator(slots_, capacity_, pos.current_));
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  template< class InputIt >
+  HashIterator< Key, T, Hash, Eq > HashTable< Key, T, Hash, Eq >::erase(InputIt first, InputIt last)
+  {
+    iterator result;
+
+    for (auto it = first; it != last;)
+    {
+      result = erase(it++);
     }
 
-    std::pair<iterator, bool> insert_or_assign(const Key& key, T value) {
-        value_type val{key, std::move(value)};
-        if (loadFactor() > max_load_factor_) {
-            rehash(capacity_ * 2);
-        }
-        size_type index = hash(key);
-        size_type first_deleted = capacity_;
-        for (size_type i = 0; i < capacity_; ++i) {
-            size_type pos = (index + i) % capacity_;
-            if (!slots_[pos].occupied) {
-                size_type insert_pos = (first_deleted != capacity_) ? first_deleted : pos;
-                slots_[insert_pos].key = val.first;
-                slots_[insert_pos].data = std::move(val.second);
-                slots_[insert_pos].occupied = true;
-                slots_[insert_pos].deleted = false;
-                ++size_;
-                return {iterator(slots_.data() + insert_pos, slots_.data() + capacity_, *this), true};
-            }
-            if (slots_[pos].deleted && first_deleted == capacity_) {
-                first_deleted = pos;
-            }
-            if (slots_[pos].occupied && !slots_[pos].deleted && equal(slots_[pos].key, key)) {
-                slots_[pos].data = std::move(value);
-                return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), false};
-            }
-        }
-        if (first_deleted != capacity_) {
-            size_type pos = first_deleted;
-            slots_[pos].key = val.first;
-            slots_[pos].data = std::move(val.second);
-            slots_[pos].occupied = true;
-            slots_[pos].deleted = false;
-            ++size_;
-            return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), true};
-        }
-        throw std::overflow_error("Hash table overflow");
+    return result;
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  size_t HashTable< Key, T, Hash, Eq >::erase(const Key& key)
+  {
+    size_t pos = find_position(key);
+
+    if (pos != capacity_)
+    {
+      slots_[pos].occupied = false;
+      slots_[pos].deleted = true;
+      size_--;
+      return 1;
     }
 
-    size_type erase(const Key& key) {
-        auto it = find(key);
-        if (it == end()) return 0;
-        size_type pos = it.base() - slots_.data();
-        slots_[pos].deleted = true;
-        --size_;
-        return 1;
+    return 0;
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  void HashTable< Key, T, Hash, Eq >::swap(HashTable& rhs) noexcept
+  {
+    std::swap(slots_, rhs.slots_);
+    std::swap(capacity_, rhs.capacity_);
+    std::swap(size_, rhs.size_);
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  float HashTable< Key, T, Hash, Eq >::max_load_factor() const noexcept
+  {
+    return max_load_factor_;
+  }
+
+  template< class Key, class T, class Hash, class Eq >
+  void HashTable< Key, T, Hash, Eq >::max_load_factor(float ml)
+  {
+    if (ml > 0.0f && ml <= 1.0f)
+    {
+      max_load_factor_ = ml;
+
+      if (loadFactor() > max_load_factor_)
+      {
+        rehash(capacity_ * 2);
+      }
     }
-
-    iterator find(const Key& key) {
-        size_type index = hash(key);
-        for (size_type i = 0; i < capacity_; ++i) {
-            size_type pos = (index + i) % capacity_;
-            if (!slots_[pos].occupied) break;
-            if (slots_[pos].deleted) continue;
-            if (equal(slots_[pos].key, key)) {
-                return iterator(slots_.data() + pos, slots_.data() + capacity_, *this);
-            }
-        }
-        return end();
-    }
-
-    cIterator find(const Key& key) const {
-        size_type index = hash(key);
-        for (size_type i = 0; i < capacity_; ++i) {
-            size_type pos = (index + i) % capacity_;
-            if (!slots_[pos].occupied) break;
-            if (slots_[pos].deleted) continue;
-            if (equal(slots_[pos].key, key)) {
-                return cIterator(slots_.data() + pos, slots_.data() + capacity_, *this);
-            }
-        }
-        return end();
-    }
-
-    iterator begin() noexcept {
-        return iterator(slots_.data(), slots_.data() + capacity_, *this);
-    }
-
-    iterator end() noexcept {
-        return iterator(slots_.data() + capacity_, slots_.data() + capacity_, *this);
-    }
-
-    cIterator begin() const noexcept {
-        return cIterator(slots_.data(), slots_.data() + capacity_, *this);
-    }
-
-    cIterator end() const noexcept {
-        return cIterator(slots_.data() + capacity_, slots_.data() + capacity_, *this);
-    }
-
-    cIterator cbegin() const noexcept {
-        return begin();
-    }
-
-    cIterator cend() const noexcept {
-        return end();
-    }
-
-    void clear() noexcept {
-        for (auto& slot : slots_) {
-            slot.occupied = false;
-            slot.deleted = false;
-        }
-        size_ = 0;
-    }
-
-    size_type size() const noexcept { return size_; }
-    bool empty() const noexcept { return size_ == 0; }
-    size_type bucket_count() const noexcept { return capacity_; }
-    float load_factor() const noexcept { return loadFactor(); }
-    float max_load_factor() const noexcept { return max_load_factor_; }
-    void max_load_factor(float z) { max_load_factor_ = z; }
-    void reserve(size_type n) { rehash(static_cast<size_type>(n / max_load_factor_ + 1)); }
-
-    class iterator {
-    private:
-        Slot* current_;
-        const Slot* end_;
-        const HashTable* table_;
-
-    public:
-        using iterator_category = std::forward_iterator_tag;
-        using value_type = HashTable::value_type;
-        using difference_type = std::ptrdiff_t;
-        using pointer = value_type*;
-        using reference = value_type&;
-
-        iterator() : current_(nullptr), end_(nullptr), table_(nullptr) {}
-
-        iterator(Slot* start, const Slot* end, const HashTable& table) : current_(start), end_(end), table_(&table) {
-            advance_to_next();
-        }
-
-        iterator(const iterator& other) : current_(other.current_), end_(other.end_), table_(other.table_) {}
-
-        iterator(iterator&& other) noexcept : current_(other.current_), end_(other.end_), table_(other.table_) {
-            other.current_ = nullptr;
-            other.end_ = nullptr;
-            other.table_ = nullptr;
-        }
-
-        reference operator*() const {
-            static thread_local value_type temp;
-            temp.first = current_->key;
-            temp.second = current_->data;
-            return temp;
-        }
-
-        pointer operator->() const {
-            return std::addressof(operator*());
-        }
-
-        iterator& operator++() {
-            ++current_;
-            advance_to_next();
-            return *this;
-        }
-
-        iterator operator++(int) {
-            iterator tmp = *this;
-            ++(*this);
-            return tmp;
-        }
-
-        bool operator==(const iterator& other) const { return current_ == other.current_; }
-        bool operator!=(const iterator& other) const { return !(*this == other); }
-
-        Slot* base() const { return current_; }
-
-    private:
-        void advance_to_next() {
-            while (current_ < end_ && (!current_->occupied || current_->deleted)) {
-                ++current_;
-            }
-        }
-    };
-
-    class cIterator {
-    private:
-        const Slot* current_;
-        const Slot* end_;
-        const HashTable* table_;
-
-    public:
-        using iterator_category = std::forward_iterator_tag;
-        using value_type = const HashTable::value_type;
-        using difference_type = std::ptrdiff_t;
-        using pointer = const value_type*;
-        using reference = const value_type&;
-
-        cIterator() : current_(nullptr), end_(nullptr), table_(nullptr) {}
-
-        cIterator(const Slot* start, const Slot* end, const HashTable& table) : current_(start), end_(end), table_(&table) {
-            advance_to_next();
-        }
-
-        cIterator(const cIterator& other) : current_(other.current_), end_(other.end_), table_(other.table_) {}
-
-        cIterator(cIterator&& other) noexcept : current_(other.current_), end_(other.end_), table_(other.table_) {
-            other.current_ = nullptr;
-            other.end_ = nullptr;
-            other.table_ = nullptr;
-        }
-
-        reference operator*() const {
-            static thread_local value_type temp;
-            temp.first = current_->key;
-            temp.second = current_->data;
-            return temp;
-        }
-
-        pointer operator->() const {
-            return std::addressof(operator*());
-        }
-
-        cIterator& operator++() {
-            ++current_;
-            advance_to_next();
-            return *this;
-        }
-
-        cIterator operator++(int) {
-            cIterator tmp = *this;
-            ++(*this);
-            return tmp;
-        }
-
-        bool operator==(const cIterator& other) const { return current_ == other.current_; }
-        bool operator!=(const cIterator& other) const { return !(*this == other); }
-
-    private:
-        void advance_to_next() const {
-            while (current_ < end_ && (!current_->occupied || current_->deleted)) {
-                ++current_;
-            }
-        }
-    };
-};
-
-template <typename Key, typename T, typename Hash, typename Eq>
-void swap(HashTable<Key, T, Hash, Eq>& lhs, HashTable<Key, T, Hash, Eq>& rhs) noexcept {
-    lhs.swap(rhs);
-}
-
+  }
 }
 
 #endif

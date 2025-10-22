@@ -1,23 +1,23 @@
 #ifndef FWD_LIST_NODE_HPP
-#define FWD_LIST_NODE_HPP
+#define FWDL_IST_NODE_HPP
+
+#include <utility>
 
 namespace shramko
 {
-  template < typename T >
+  template< typename T >
   struct ListNode
   {
     T dataValue;
     ListNode< T >* nextPtr;
 
-    ListNode():
+    explicit ListNode(const T& val):
+      dataValue(val),
       nextPtr(nullptr)
     {}
-    ListNode(const T& value):
-      dataValue(value),
-      nextPtr(nullptr)
-    {}
-    ListNode(T&& value):
-      dataValue(std::move(value)),
+
+    explicit ListNode(T&& val):
+      dataValue(std::move(val)),
       nextPtr(nullptr)
     {}
   };

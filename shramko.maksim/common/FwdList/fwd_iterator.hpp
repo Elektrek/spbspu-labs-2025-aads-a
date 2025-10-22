@@ -4,62 +4,50 @@
 #include <iterator>
 
 #include "fwd_list_node.hpp"
+#include "fwd_const_iterator.hpp"
 
 namespace shramko
 {
-  template < typename T >
-  class FwdIterator: public std::iterator< std::forward_iterator_tag, T >
+  template< typename T >
+  class ForwardList;
+
+  template< typename T >
+  class Iterator: public ConstIterator< T >
   {
   public:
+    using iterator_category = std::forward_iterator_tag;
     using value_type = T;
+    using difference_type = std::ptrdiff_t;
     using pointer = T*;
     using reference = T&;
-    using difference_type = ptrdiff_t;
-    using iterator_category = std::forward_iterator_tag;
 
-    FwdIterator():
-      current_(nullptr)
-    {}
+    using ConstIterator< T >::ConstIterator;
 
-    explicit FwdIterator(ListNode< T >* node):
-      current_(node)
-    {}
+    Iterator& operator++()
+    {
+      ConstIterator< T >::operator++();
+      return *this;
+    }
+
+    Iterator operator++(int)
+    {
+      Iterator temp = *this;
+      ConstIterator< T >::operator++(0);
+      return temp;
+    }
 
     reference operator*() const
     {
-      return current_->dataValue;
+      return const_cast< reference >(ConstIterator< T >::operator*());
     }
 
     pointer operator->() const
     {
-      return &(operator*());
-    }
-
-    FwdIterator& operator++()
-    {
-      current_ = current_->nextPtr;
-      return *this;
-    }
-
-    FwdIterator operator++(int)
-    {
-      FwdIterator tmp = *this;
-      ++*this;
-      return tmp;
-    }
-
-    bool operator==(const FwdIterator& other) const
-    {
-      return current_ == other.current_;
-    }
-
-    bool operator!=(const FwdIterator& other) const
-    {
-      return !(*this == other);
+      return const_cast< pointer >(ConstIterator< T >::operator->());
     }
 
   private:
-    ListNode< T >* current_;
+    friend class ForwardList< T >;
   };
 }
 

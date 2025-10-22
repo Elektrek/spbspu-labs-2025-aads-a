@@ -7,59 +7,67 @@
 
 namespace shramko
 {
-  template < typename T >
-  class FwdConstIterator: public std::iterator< std::forward_iterator_tag, T >
+  template< typename T >
+  class ForwardList;
+
+  template< typename T >
+  class ConstIterator
   {
   public:
+    using iterator_category = std::forward_iterator_tag;
     using value_type = T;
+    using difference_type = std::ptrdiff_t;
     using pointer = const T*;
     using reference = const T&;
-    using difference_type = ptrdiff_t;
-    using iterator_category = std::forward_iterator_tag;
 
-    FwdConstIterator():
-      current_(nullptr)
+    ConstIterator():
+      node_(nullptr),
+      isAtBegin_(true)
     {}
 
-    explicit FwdConstIterator(const ListNode< T >* node):
-      current_(node)
+    explicit ConstIterator(ListNode< T >* node):
+      node_(node),
+      isAtBegin_(true)
     {}
+
+    ConstIterator& operator++()
+    {
+      node_ = node_->nextPtr;
+      isAtBegin_ = false;
+      return *this;
+    }
+
+    ConstIterator operator++(int)
+    {
+      ConstIterator temp = *this;
+      ++(*this);
+      return temp;
+    }
 
     reference operator*() const
     {
-      return current_->dataValue;
+      return node_->dataValue;
     }
 
     pointer operator->() const
     {
-      return &(operator*());
+      return &node_->dataValue;
     }
 
-    FwdConstIterator& operator++()
+    bool operator==(const ConstIterator& other) const
     {
-      current_ = current_->nextPtr;
-      return *this;
+      return node_ == other.node_ && isAtBegin_ == other.isAtBegin_;
     }
 
-    FwdConstIterator operator++(int)
-    {
-      FwdConstIterator tmp = *this;
-      ++*this;
-      return tmp;
-    }
-
-    bool operator==(const FwdConstIterator& other) const
-    {
-      return current_ == other.current_;
-    }
-
-    bool operator!=(const FwdConstIterator& other) const
+    bool operator!=(const ConstIterator& other) const
     {
       return !(*this == other);
     }
 
   private:
-    const ListNode< T >* current_;
+    friend class ForwardList< T >;
+    ListNode< T >* node_;
+    bool isAtBegin_;
   };
 }
 

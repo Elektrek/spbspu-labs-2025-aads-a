@@ -6,92 +6,100 @@
 
 namespace shramko
 {
-  template < class Key, class Value, class Compare >
-  class ConstIterator: public std::iterator< std::bidirectional_iterator_tag, std::pair< const Key, Value > >
+  template < typename Key, typename Value, typename Compare >
+  class UBstTree;
+
+  template < typename Key, typename Value, typename Compare = std::less< Key > >
+  class ConstIterator: public std::iterator< std::bidirectional_iterator_tag, std::pair< const Key, Value >,
+    std::ptrdiff_t, const std::pair< const Key, Value >*, const std::pair< const Key, Value >& >
   {
   public:
     using value_type = std::pair< const Key, Value >;
-    using pointer = value_type*;
-    using reference = value_type;
-    using difference_type = ptrdiff_t;
-    using iterator_category = std::bidirectional_iterator_tag;
+    using difference_type = std::ptrdiff_t;
+    using pointer = const value_type*;
+    using reference = const value_type&;
 
     ConstIterator():
-      node_(nullptr)
+      node_(nullptr),
+      tree_(nullptr)
     {}
 
-    explicit ConstIterator(const Node< Key, Value >* node):
-      node_(node)
+    explicit ConstIterator(const Node< Key, Value >* node, const UBstTree< Key, Value, Compare >* tree = nullptr):
+      node_(node),
+      tree_(tree)
     {}
 
-    const value_type& operator*() const
+    reference operator*() const
     {
-      static thread_local value_type temp;
-      temp = {node_->key, node_->value};
-      return temp;
+      return node_->data;
     }
 
-    const value_type* operator->() const
+    pointer operator->() const
     {
-      static thread_local value_type temp;
-      temp = {node_->key, node_->value};
-      return &temp;
+      return &(node_->data);
     }
 
     ConstIterator& operator++()
     {
-      if (node_->right)
+      if (node_)
       {
-        node_ = node_->right;
-        while (node_->left)
+        if (node_->right)
         {
-          node_ = node_->left;
+          node_ = minNode(node_->right);
         }
-      }
-      else
-      {
-        while (node_->parent && node_ == node_->parent->right)
+        else
         {
-          node_ = node_->parent;
+          const Node< Key, Value >* parent = node_->parent;
+          while (parent && node_ == parent->right)
+          {
+            node_ = parent;
+            parent = parent->parent;
+          }
+          node_ = parent;
         }
-        node_ = node_->parent;
       }
       return *this;
     }
 
     ConstIterator operator++(int)
     {
-      ConstIterator tmp = *this;
-      ++*this;
-      return tmp;
+      ConstIterator temp = *this;
+      ++(*this);
+      return temp;
     }
 
     ConstIterator& operator--()
     {
+      if (!node_)
+      {
+        if (tree_)
+        {
+          node_ = tree_->maxNode(tree_->root_);
+        }
+        return *this;
+      }
       if (node_->left)
       {
-        node_ = node_->left;
-        while (node_->right)
-        {
-          node_ = node_->right;
-        }
+        node_ = maxNode(node_->left);
       }
       else
       {
-        while (node_->parent && node_ == node_->parent->left)
+        const Node< Key, Value >* parent = node_->parent;
+        while (parent && node_ == parent->left)
         {
-          node_ = node_->parent;
+          node_ = parent;
+          parent = parent->parent;
         }
-        node_ = node_->parent;
+        node_ = parent;
       }
       return *this;
     }
 
     ConstIterator operator--(int)
     {
-      ConstIterator tmp = *this;
-      --*this;
-      return tmp;
+      ConstIterator temp = *this;
+      --(*this);
+      return temp;
     }
 
     bool operator==(const ConstIterator& other) const
@@ -105,7 +113,27 @@ namespace shramko
     }
 
   private:
+    friend class UBstTree< Key, Value, Compare >;
     const Node< Key, Value >* node_;
+    const UBstTree< Key, Value, Compare >* tree_;
+
+    const Node< Key, Value >* minNode(const Node< Key, Value >* node) const
+    {
+      while (node && node->left)
+      {
+        node = node->left;
+      }
+      return node;
+    }
+
+    const Node< Key, Value >* maxNode(const Node< Key, Value >* node) const
+    {
+      while (node && node->right)
+      {
+        node = node->right;
+      }
+      return node;
+    }
   };
 }
 

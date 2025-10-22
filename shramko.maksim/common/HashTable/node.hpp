@@ -5,14 +5,12 @@
 
 namespace shramko
 {
-  template < class Key, class T >
+  template< class Key, class T >
   struct Node
   {
-    std::pair< const Key, T > data;
-    bool occupied;
-    bool deleted;
-
-    Node() : occupied(false), deleted(false) {}
+    std::pair< Key, T > data;
+    bool occupied = false;
+    bool deleted = false;
   };
 }
 
