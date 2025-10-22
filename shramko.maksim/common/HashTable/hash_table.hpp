@@ -148,13 +148,13 @@ public:
                 slots_[pos].occupied = true;
                 slots_[pos].deleted = false;
                 ++size_;
-                return {iterator(slots_.data() + pos, slots_.data() + capacity_), true};
+                return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), true};
             }
             if (slots_[pos].deleted && first_deleted == capacity_) {
                 first_deleted = pos;
             }
             if (slots_[pos].occupied && equal(slots_[pos].key, value.first)) {
-                return {iterator(slots_.data() + pos, slots_.data() + capacity_), false};
+                return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), false};
             }
         }
         throw std::overflow_error("Hash table overflow");
@@ -175,13 +175,13 @@ public:
                 slots_[pos].occupied = true;
                 slots_[pos].deleted = false;
                 ++size_;
-                return {iterator(slots_.data() + pos, slots_.data() + capacity_), true};
+                return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), true};
             }
             if (slots_[pos].deleted && first_deleted == capacity_) {
                 first_deleted = pos;
             }
             if (slots_[pos].occupied && equal(slots_[pos].key, value.first)) {
-                return {iterator(slots_.data() + pos, slots_.data() + capacity_), false};
+                return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), false};
             }
         }
         throw std::overflow_error("Hash table overflow");
@@ -214,14 +214,14 @@ public:
                 slots_[pos].occupied = true;
                 slots_[pos].deleted = false;
                 ++size_;
-                return {iterator(slots_.data() + pos, slots_.data() + capacity_), true};
+                return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), true};
             }
             if (slots_[pos].deleted && first_deleted == capacity_) {
                 first_deleted = pos;
             }
             if (slots_[pos].occupied && equal(slots_[pos].key, key)) {
                 slots_[pos].data = std::move(obj);
-                return {iterator(slots_.data() + pos, slots_.data() + capacity_), false};
+                return {iterator(slots_.data() + pos, slots_.data() + capacity_, *this), false};
             }
         }
         throw std::overflow_error("Hash table overflow");
@@ -314,7 +314,7 @@ public:
             if (!slots_[pos].occupied) break;
             if (slots_[pos].deleted) continue;
             if (equal(slots_[pos].key, key)) {
-                return iterator(slots_.data() + pos, slots_.data() + capacity_);
+                return iterator(slots_.data() + pos, slots_.data() + capacity_, *this);
             }
         }
         return end();
@@ -327,26 +327,26 @@ public:
             if (!slots_[pos].occupied) break;
             if (slots_[pos].deleted) continue;
             if (equal(slots_[pos].key, key)) {
-                return cIterator(slots_.data() + pos, slots_.data() + capacity_);
+                return cIterator(slots_.data() + pos, slots_.data() + capacity_, *this);
             }
         }
         return end();
     }
 
     iterator begin() noexcept {
-        return iterator(slots_.data(), slots_.data() + capacity_);
+        return iterator(slots_.data(), slots_.data() + capacity_, *this);
     }
 
     iterator end() noexcept {
-        return iterator(slots_.data() + capacity_, slots_.data() + capacity_);
+        return iterator(slots_.data() + capacity_, slots_.data() + capacity_, *this);
     }
 
     cIterator begin() const noexcept {
-        return cIterator(slots_.data(), slots_.data() + capacity_);
+        return cIterator(slots_.data(), slots_.data() + capacity_, *this);
     }
 
     cIterator end() const noexcept {
-        return cIterator(slots_.data() + capacity_, slots_.data() + capacity_);
+        return cIterator(slots_.data() + capacity_, slots_.data() + capacity_, *this);
     }
 
     cIterator cbegin() const noexcept {
@@ -376,6 +376,14 @@ public:
             advance_to_next();
         }
 
+        iterator(const iterator& other) : current_(other.current_), end_(other.end_), table_(other.table_) {}
+
+        iterator(iterator&& other) noexcept : current_(other.current_), end_(other.end_), table_(other.table_) {
+            other.current_ = nullptr;
+            other.end_ = nullptr;
+            other.table_ = nullptr;
+        }
+
         reference operator*() const { return deref(); }
         pointer operator->() const { return &deref(); }
 
@@ -394,6 +402,8 @@ public:
         bool operator==(const iterator& other) const { return current_ == other.current_; }
         bool operator!=(const iterator& other) const { return !(*this == other); }
 
+        Slot* base() const { return current_; }
+
     private:
         void advance_to_next() {
             while (current_ != end_ && (!current_->occupied || current_->deleted)) {
@@ -404,10 +414,10 @@ public:
         value_type& deref() const {
             static value_type dummy;
             if (current_ == end_ || !current_->occupied || current_->deleted) return dummy;
-            return *(new value_type(current_->key, current_->data));
+            static thread_local value_type temp;
+            temp = value_type(current_->key, current_->data);
+            return temp;
         }
-
-        Slot* base() const { return current_; }
     };
 
     class cIterator {
@@ -427,6 +437,14 @@ public:
 
         cIterator(const Slot* start, const Slot* end, const HashTable& table) : current_(start), end_(end), table_(&table) {
             advance_to_next();
+        }
+
+        cIterator(const cIterator& other) : current_(other.current_), end_(other.end_), table_(other.table_) {}
+
+        cIterator(cIterator&& other) noexcept : current_(other.current_), end_(other.end_), table_(other.table_) {
+            other.current_ = nullptr;
+            other.end_ = nullptr;
+            other.table_ = nullptr;
         }
 
         reference operator*() const { return deref(); }
@@ -457,7 +475,9 @@ public:
         value_type& deref() const {
             static value_type dummy;
             if (current_ == end_ || !current_->occupied || current_->deleted) return dummy;
-            return *(new value_type(current_->key, current_->data));
+            static thread_local value_type temp;
+            temp = value_type(current_->key, current_->data);
+            return temp;
         }
     };
 };
