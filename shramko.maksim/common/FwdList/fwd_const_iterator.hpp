@@ -1,9 +1,9 @@
-#ifndef CONSTITERATOR_HPP
-#define CONSTITERATOR_HPP
+#ifndef FWD_CONST_ITERATOR_HPP
+#define FWD_CONST_ITERATOR_HPP
 
 #include <iterator>
 
-#include "FwdListNode.hpp"
+#include "fwd_list_node.hpp"
 
 namespace shramko
 {
@@ -11,7 +11,7 @@ namespace shramko
   class ForwardList;
 
   template< typename T >
-  class ConstIterator
+  class FwdConstIterator
   {
   public:
     using iterator_category = std::forward_iterator_tag;
@@ -20,26 +20,26 @@ namespace shramko
     using pointer = const T*;
     using reference = const T&;
 
-    ConstIterator():
+    FwdConstIterator():
       node_(nullptr),
       isAtBegin_(true)
     {}
 
-    explicit ConstIterator(ListNode< T >* node):
+    explicit FwdConstIterator(ListNode< T >* node):
       node_(node),
       isAtBegin_(true)
     {}
 
-    ConstIterator& operator++()
+    FwdConstIterator& operator++()
     {
       node_ = node_->nextPtr;
       isAtBegin_ = false;
       return *this;
     }
 
-    ConstIterator operator++(int)
+    FwdConstIterator operator++(int)
     {
-      ConstIterator temp = *this;
+      FwdConstIterator temp = *this;
       ++(*this);
       return temp;
     }
@@ -54,12 +54,12 @@ namespace shramko
       return &node_->dataValue;
     }
 
-    bool operator==(const ConstIterator& other) const
+    bool operator==(const FwdConstIterator& other) const
     {
       return node_ == other.node_ && isAtBegin_ == other.isAtBegin_;
     }
 
-    bool operator!=(const ConstIterator& other) const
+    bool operator!=(const FwdConstIterator& other) const
     {
       return !(*this == other);
     }

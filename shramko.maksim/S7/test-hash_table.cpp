@@ -1,6 +1,6 @@
 #include <boost/test/unit_test.hpp>
 #include <sstream>
-#include "hash_table.hpp"
+#include <HashTable/hash_table.hpp>
 
 namespace
 {
