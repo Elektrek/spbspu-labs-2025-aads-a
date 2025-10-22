@@ -61,7 +61,7 @@ namespace shramko
 
     Node< Key, Value >* insertNode(Node< Key, Value >* node, const Key& key,
       const Value& value, Node< Key, Value >* parent, size_t& size);
-    
+
     Node< Key, Value >* findNodeNonConst(Node< Key, Value >* node, const Key& key);
 
     Node< Key, Value >* findNode(Node< Key, Value >* node, const Key& key);
